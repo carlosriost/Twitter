@@ -1,0 +1,23 @@
+{
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "firechirp-demo",
+    "storage_bucket": "firechirp-demo.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:placeholder",
+        "android_client_info": {
+          "package_name": "com.firechirp"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "REEMPLAZAR_CON_TU_API_KEY"
+        }
+      ]
+    }
+  ],
+  "configuration_version": "1"
+}
