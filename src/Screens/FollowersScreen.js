@@ -15,7 +15,7 @@ const mockFollowers = [
   { id: '1', name: 'John Doe', username: 'johndoe' },
   { id: '2', name: 'Jane Smith', username: 'janesmith' },
   { id: '3', name: 'Alex Turner', username: 'alexturner' },
-  { id: '4', name: 'Lena Rivers', username: 'lenarivers' },
+  { id: '4', name: 'Lena Rivvers', username: 'lenarivers' },
 ];
 
 export default function FollowersScreen() {
