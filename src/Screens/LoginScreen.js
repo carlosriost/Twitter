@@ -8,16 +8,44 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
+  ActivityIndicator,
+
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
+import { loginUser } from '../Services/authService';
+import { getUserProfile } from '../Services/userService';
 
 export default function LoginScreen({ navigation }) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    navigation.navigate('Home', { username: username || 'user' });
-  };
+
+
+const handleLogin = async () => {
+  if (!email || !password) return;
+
+  setLoading(true);
+  try {
+    const user = await loginUser(email, password);
+    const profile = await getUserProfile(user.uid);
+
+    console.log("✅ Sesión iniciada. Perfil del usuario:", profile);
+
+    navigation.navigate("Home", { 
+      uid: user.uid, 
+      username: profile?.username || "user", 
+      fullname: profile?.fullname || "Usuario" 
+    });
+  } catch (error) {
+    console.error("❌ Error al iniciar sesión:", error);
+    alert("Error al iniciar sesión: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -27,24 +55,21 @@ export default function LoginScreen({ navigation }) {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo */}
         <View style={styles.logoRow}>
           <Text style={styles.logo}>𝕏</Text>
         </View>
 
-        {/* Título */}
         <Text style={styles.title}>Sign in to X</Text>
 
-        {/* Formulario */}
         <View style={styles.formCard}>
           <TextInput
             style={styles.input}
-            placeholder="Phone, email, or username"
+            placeholder="Email"
             placeholderTextColor={colors.textLight}
-            value={username}
-            onChangeText={setUsername}
+            value={email}
+            onChangeText={setEmail}
             autoCapitalize="none"
-            returnKeyType="next"
+            keyboardType="email-address"
           />
 
           <TextInput
@@ -54,7 +79,6 @@ export default function LoginScreen({ navigation }) {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
-            returnKeyType="done"
           />
 
           <TouchableOpacity style={styles.forgotButton}>
@@ -62,15 +86,18 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.primaryButton, !password && styles.primaryButtonDisabled]}
+            style={[styles.primaryButton, (!email || !password) && styles.primaryButtonDisabled]}
             onPress={handleLogin}
-            disabled={!password}
+            disabled={!email || !password || loading}
           >
-            <Text style={styles.primaryButtonText}>Sign in</Text>
+            {loading ? (
+              <ActivityIndicator color={colors.background} />
+            ) : (
+              <Text style={styles.primaryButtonText}>Sign in</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Footer */}
         <View style={styles.footerPrompt}>
           <Text style={styles.footerText}>Don’t have an account?</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
@@ -83,24 +110,10 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scroll: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  logoRow: {
-    alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  logo: {
-    fontSize: 46,
-    fontWeight: '900',
-    color: colors.text,
-  },
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+  logoRow: { alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.lg },
+  logo: { fontSize: 46, fontWeight: '900', color: colors.text },
   title: {
     fontSize: typography.title + 2,
     fontWeight: '800',
@@ -125,28 +138,16 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     color: colors.text,
   },
-  forgotButton: {
-    alignSelf: 'flex-start',
-  },
-  forgotText: {
-    color: colors.primary,
-    fontWeight: '600',
-    fontSize: typography.caption,
-  },
+  forgotButton: { alignSelf: 'flex-start' },
+  forgotText: { color: colors.primary, fontWeight: '600', fontSize: typography.caption },
   primaryButton: {
     backgroundColor: colors.primary,
     borderRadius: radii.pill,
     paddingVertical: spacing.sm + spacing.xs,
     alignItems: 'center',
   },
-  primaryButtonText: {
-    color: colors.background,
-    fontSize: typography.subtitle,
-    fontWeight: '700',
-  },
-  primaryButtonDisabled: {
-    backgroundColor: colors.accent,
-  },
+  primaryButtonText: { color: colors.background, fontSize: typography.subtitle, fontWeight: '700' },
+  primaryButtonDisabled: { backgroundColor: colors.accent },
   footerPrompt: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -154,13 +155,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginTop: spacing.lg,
   },
-  footerText: {
-    color: colors.textLight,
-    fontSize: typography.caption,
-  },
-  footerLink: {
-    color: colors.primary,
-    fontSize: typography.caption,
-    fontWeight: '700',
-  },
+  footerText: { color: colors.textLight, fontSize: typography.caption },
+  footerLink: { color: colors.primary, fontSize: typography.caption, fontWeight: '700' },
 });

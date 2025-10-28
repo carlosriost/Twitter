@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
@@ -10,43 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
-
-// 🐦 Tweets de ejemplo
-const mockTweets = [
-  {
-    id: '1',
-    name: 'X Designer',
-    username: 'design_team',
-    time: '1h',
-    content:
-      'Crafting pixel perfect clones keeps your UI instincts sharp. Ship fast, polish faster. #Design',
-    replies: 23,
-    retweets: 18,
-    likes: 240,
-  },
-  {
-    id: '2',
-    name: 'React Native',
-    username: 'reactnative',
-    time: '3h',
-    content:
-      'Use FlatList for long feeds, memoize heavy rows, and keep re-rendering to a minimum for the best performance.',
-    replies: 110,
-    retweets: 92,
-    likes: 1040,
-  },
-  {
-    id: '3',
-    name: 'Carletto',
-    username: 'carletto_dev',
-    time: '6h',
-    content:
-      'This Twitter clone is almost indistinguishable from the real thing. Love the polish! ✨',
-    replies: 8,
-    retweets: 15,
-    likes: 180,
-  },
-];
+import { getTweets } from '../Services/tweetService';
 
 // 🔹 Íconos inferiores
 const bottomNavItems = [
@@ -63,6 +27,24 @@ export default function HomeScreen({ navigation, route }) {
   const username = route.params?.username || 'user';
   const [activeTab, setActiveTab] = useState('forYou');
 
+  // 🔹 tweets reales desde Firebase (reemplaza mockTweets)
+  const [tweets, setTweets] = useState([]);
+
+  useEffect(() => {
+  const fetchTweets = async () => {
+    try {
+      const data = await getTweets();
+      setTweets(data);
+    } catch (error) {
+      console.error('Error loading tweets:', error);
+    }
+  };
+
+  const unsubscribe = navigation.addListener('focus', fetchTweets);
+  return unsubscribe;
+}, [navigation]);
+
+
   const quickActions = useMemo(
     () => [
       { id: 'tweet', label: 'Compose', onPress: () => navigation.navigate('Tweet') },
@@ -77,40 +59,55 @@ export default function HomeScreen({ navigation, route }) {
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarInitial}>{item.name[0]}</Text>
+        <Text style={styles.avatarInitial}>
+          {(item.fullname?.[0] || item.name?.[0] || 'U').toUpperCase()}
+        </Text>
       </View>
       <View style={styles.tweetBody}>
         <View style={styles.tweetHeader}>
           <View style={styles.headerText}>
-            <Text style={styles.tweetName}>{item.name}</Text>
-            <Text style={styles.tweetMeta}>
-              @{item.username} · {item.time}
-            </Text>
+            <Text style={styles.tweetName}>{item.fullname || item.name}</Text>
+            <Text style={styles.tweetMeta}>@{item.username || 'user'}</Text>
           </View>
           <Text style={styles.moreIcon}>⋯</Text>
         </View>
-        <Text style={styles.tweetContent}>{item.content}</Text>
+        <Text style={styles.tweetContent}>{item.text || item.content}</Text>
         <View style={styles.tweetActions}>
-          <ActionStat icon="💬" value={item.replies} />
-          <ActionStat icon="🔁" value={item.retweets} />
-          <ActionStat icon="❤️" value={item.likes} highlight />
+          <ActionStat icon="💬" />
+          <ActionStat icon="🔁" />
+          <ActionStat icon="❤️" highlight />
           <ActionStat icon="📤" />
         </View>
       </View>
     </View>
   );
 
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <FlatList
-        data={mockTweets}
+        data={tweets}
         keyExtractor={(item) => item.id}
         renderItem={renderTweet}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
+          {/* Encabezado superior */}
+<View style={styles.topBar}>
+  <TouchableOpacity
+    style={styles.profileButton}
+    onPress={() => navigation.navigate('Profile')}
+  >
+    <Text style={styles.profileInitial}>
+      {username[0]?.toUpperCase()}
+    </Text>
+  </TouchableOpacity>
+  <Text style={styles.brandMark}>𝕏</Text>
+  <Text style={styles.sparkle}>✨</Text>
+</View>
+
             {/* Header */}
             <View style={styles.topBar}>
               <TouchableOpacity style={styles.headerAvatar}>
@@ -351,6 +348,22 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     gap: spacing.md,
   },
+
+  profileButton: {
+  width: 34,
+  height: 34,
+  borderRadius: 17,
+  backgroundColor: colors.surface,
+  justifyContent: 'center',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: colors.border,
+},
+profileInitial: {
+  color: colors.text,
+  fontWeight: '700',
+},
+
   tweetBody: { flex: 1, gap: spacing.sm },
   tweetHeader: { flexDirection: 'row', alignItems: 'center' },
   headerText: { flex: 1 },

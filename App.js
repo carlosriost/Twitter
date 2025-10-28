@@ -23,6 +23,9 @@ export default function App() {
         <Stack.Screen name="Followers" component={FollowersScreen} />
         <Stack.Screen name="Following" component={FollowingScreen} />
         <Stack.Screen name="UserTweets" component={UserTweetsScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -8,24 +8,39 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '../config/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { registerUser } from '../Services/authService';
+import { createUserProfile } from '../Services/userService';
 
 export default function RegisterScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const isFormValid =
-    fullName.trim().length > 0 &&
-    username.trim().length > 0 &&
-    email.trim().length > 0 &&
+    fullName.trim() &&
+    username.trim() &&
+    email.trim() &&
     password.trim().length >= 8;
 
-  const handleRegister = () => {
-    navigation.navigate('Login');
-  };
+const handleRegister = async () => {
+  try {
+    const user = await registerUser(email, password, username, fullName);
+    await createUserProfile(user.uid, { fullName, username, email });
+    alert("Cuenta creada con éxito 🎉");
+    navigation.navigate("Login");
+  } catch (error) {
+    alert("Error al registrar: " + error.message);
+  }
+};
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -40,15 +55,12 @@ export default function RegisterScreen({ navigation }) {
           <Text style={styles.logo}>𝕏</Text>
         </View>
 
-        {/* Título */}
         <Text style={styles.title}>Create your account</Text>
 
-        {/* Progreso visual (decorativo) */}
         <View style={styles.progressTrack}>
           <View style={styles.progressFill} />
         </View>
 
-        {/* Formulario */}
         <View style={styles.formCard}>
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Name</Text>
@@ -101,13 +113,16 @@ export default function RegisterScreen({ navigation }) {
           <TouchableOpacity
             style={[styles.primaryButton, !isFormValid && styles.primaryButtonDisabled]}
             onPress={handleRegister}
-            disabled={!isFormValid}
+            disabled={!isFormValid || loading}
           >
-            <Text style={styles.primaryButtonText}>Next</Text>
+            {loading ? (
+              <ActivityIndicator color={colors.background} />
+            ) : (
+              <Text style={styles.primaryButtonText}>Next</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Footer */}
         <View style={styles.footerPrompt}>
           <Text style={styles.footerText}>Already have an account?</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -119,25 +134,12 @@ export default function RegisterScreen({ navigation }) {
   );
 }
 
+// 🔸 Estilos (idénticos a los tuyos)
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scroll: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  logoRow: {
-    alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  logo: {
-    fontSize: 46,
-    fontWeight: '900',
-    color: colors.text,
-  },
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+  logoRow: { alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.lg },
+  logo: { fontSize: 46, fontWeight: '900', color: colors.text },
   title: {
     fontSize: typography.title + 2,
     fontWeight: '800',
@@ -151,11 +153,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: spacing.lg,
   },
-  progressFill: {
-    height: '100%',
-    width: '60%',
-    backgroundColor: colors.primary,
-  },
+  progressFill: { height: '100%', width: '60%', backgroundColor: colors.primary },
   formCard: {
     backgroundColor: colors.elevated,
     borderRadius: radii.lg,
@@ -164,13 +162,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  fieldGroup: {
-    gap: spacing.xs,
-  },
-  label: {
-    fontSize: typography.caption,
-    color: colors.textLight,
-  },
+  fieldGroup: { gap: spacing.xs },
+  label: { fontSize: typography.caption, color: colors.textLight },
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -188,14 +181,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.md,
   },
-  primaryButtonDisabled: {
-    backgroundColor: colors.accent,
-  },
-  primaryButtonText: {
-    color: colors.background,
-    fontSize: typography.subtitle,
-    fontWeight: '700',
-  },
+  primaryButtonDisabled: { backgroundColor: colors.accent },
+  primaryButtonText: { color: colors.background, fontSize: typography.subtitle, fontWeight: '700' },
   footerPrompt: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -203,13 +190,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginTop: spacing.lg,
   },
-  footerText: {
-    color: colors.textLight,
-    fontSize: typography.caption,
-  },
-  footerLink: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: typography.caption,
-  },
+  footerText: { color: colors.textLight, fontSize: typography.caption },
+  footerLink: { color: colors.primary, fontWeight: '700', fontSize: typography.caption },
 });

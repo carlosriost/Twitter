@@ -13,6 +13,7 @@ export const colors = {
   danger: '#F4212E',      // rojo de alerta
 };
 
+
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -35,3 +36,4 @@ export const typography = {
   caption: 14,
   label: 12,
 };
+

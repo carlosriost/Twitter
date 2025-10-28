@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   View,
@@ -7,27 +7,40 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
+import { getFollowers } from '../Services/userService'; // 🔹 Importa el servicio de Firestore
 
-// 👥 Datos de ejemplo
-const mockFollowers = [
-  { id: '1', name: 'John Doe', username: 'johndoe' },
-  { id: '2', name: 'Jane Smith', username: 'janesmith' },
-  { id: '3', name: 'Alex Turner', username: 'alexturner' },
-  { id: '4', name: 'Lena Rivers', username: 'lenarivers' },
-];
+export default function FollowersScreen({ route, navigation }) {
+  const [followers, setFollowers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-export default function FollowersScreen() {
+  const username = route.params?.username || 'carletto'; // usuario actual
+
+  useEffect(() => {
+    const fetchFollowers = async () => {
+      try {
+        const data = await getFollowers(username);
+        setFollowers(data);
+      } catch (error) {
+        console.error('Error al obtener seguidores:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFollowers();
+  }, [username]);
+
   const renderFollower = ({ item }) => (
     <View style={styles.row}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarInitial}>{item.name[0]}</Text>
+        <Text style={styles.avatarInitial}>{item[0]?.toUpperCase()}</Text>
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.username}>@{item.username}</Text>
+        <Text style={styles.name}>{item}</Text>
+        <Text style={styles.username}>@{item}</Text>
 
         <View style={styles.badgeRow}>
           <View style={styles.badgePill}>
@@ -42,35 +55,46 @@ export default function FollowersScreen() {
     </View>
   );
 
+  if (loading)
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+      </SafeAreaView>
+    );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.backArrow}>‹</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backArrow}>‹</Text>
+        </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>Followers</Text>
-          <Text style={styles.headerSubtitle}>@carletto</Text>
+          <Text style={styles.headerSubtitle}>@{username}</Text>
         </View>
       </View>
 
       {/* Segmento superior */}
       <View style={styles.segment}>
         <TouchableOpacity style={[styles.segmentItem, styles.segmentActive]}>
-          <Text style={[styles.segmentLabel, styles.segmentLabelActive]}>
-            Followers
-          </Text>
+          <Text style={[styles.segmentLabel, styles.segmentLabelActive]}>Followers</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.segmentItem}>
+
+        <TouchableOpacity
+          style={styles.segmentItem}
+          onPress={() => navigation.navigate('Following', { username })}
+        >
           <Text style={styles.segmentLabel}>Following</Text>
         </TouchableOpacity>
       </View>
 
       {/* Lista de seguidores */}
       <FlatList
-        data={mockFollowers}
-        keyExtractor={(item) => item.id}
+        data={followers}
+        keyExtractor={(item, index) => index.toString()}
         renderItem={renderFollower}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={styles.listContent}
@@ -80,11 +104,9 @@ export default function FollowersScreen() {
   );
 }
 
+// 🎨 ESTILOS (idénticos al diseño original)
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  safeArea: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -94,19 +116,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  backArrow: {
-    fontSize: 26,
-    color: colors.text,
-  },
-  headerTitle: {
-    fontSize: typography.title,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  headerSubtitle: {
-    color: colors.textLight,
-    fontSize: typography.caption,
-  },
+  backArrow: { fontSize: 26, color: colors.text },
+  headerTitle: { fontSize: typography.title, fontWeight: '700', color: colors.text },
+  headerSubtitle: { color: colors.textLight, fontSize: typography.caption },
+
   segment: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -126,12 +139,9 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     fontWeight: '600',
   },
-  segmentLabelActive: {
-    color: colors.text,
-  },
-  listContent: {
-    paddingVertical: spacing.sm,
-  },
+  segmentLabelActive: { color: colors.text },
+
+  listContent: { paddingVertical: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -152,23 +162,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: typography.subtitle,
   },
-  info: {
-    flex: 1,
-  },
-  name: {
-    fontWeight: '700',
-    color: colors.text,
-    fontSize: typography.body,
-  },
+  info: { flex: 1 },
+  name: { fontWeight: '700', color: colors.text, fontSize: typography.body },
   username: {
     color: colors.muted,
     fontSize: typography.caption,
     marginTop: spacing.xs,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    marginTop: spacing.xs,
-  },
+  badgeRow: { flexDirection: 'row', marginTop: spacing.xs },
   badgePill: {
     borderRadius: radii.pill,
     backgroundColor: colors.surface,
@@ -177,23 +178,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  badgeText: {
-    color: colors.textLight,
-    fontSize: typography.caption,
-  },
+  badgeText: { color: colors.textLight, fontSize: typography.caption },
   followButton: {
     backgroundColor: colors.text,
     borderRadius: radii.pill,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xs,
   },
-  followText: {
-    color: colors.background,
-    fontWeight: '700',
-  },
-  separator: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginLeft: spacing.md + 50,
-  },
+  followText: { color: colors.background, fontWeight: '700' },
+  separator: { height: 1, backgroundColor: colors.border, marginLeft: spacing.md + 50 },
 });

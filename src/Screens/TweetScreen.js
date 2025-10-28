@@ -7,17 +7,41 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
+import { db } from '../config/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-export default function TweetScreen({ navigation }) {
+export default function TweetScreen({ navigation, route }) {
   const [tweet, setTweet] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handlePost = () => {
+  // 🔹 Datos del usuario (por ahora se usa username genérico)
+  const username = route.params?.username || 'user';
+  const fullname = route.params?.fullname || 'Usuario';
+
+  // 🐦 Guardar tweet en Firebase
+  const handlePost = async () => {
     if (!tweet.trim()) return;
-    alert('Tweet posted! 🐦');
-    setTweet('');
-    navigation.goBack();
+
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'tweets'), {
+        fullname,
+        username,
+        content: tweet.trim(),
+        createdAt: serverTimestamp(),
+      });
+
+      setTweet('');
+      navigation.goBack(); // 🔙 Regresa al HomeScreen
+    } catch (error) {
+      console.error('Error al publicar el tweet:', error);
+      alert('Error al publicar el tweet 😢');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,12 +57,16 @@ export default function TweetScreen({ navigation }) {
         <TouchableOpacity
           style={[
             styles.postButton,
-            !tweet.trim() && styles.postButtonDisabled,
+            (!tweet.trim() || loading) && styles.postButtonDisabled,
           ]}
           onPress={handlePost}
-          disabled={!tweet.trim()}
+          disabled={!tweet.trim() || loading}
         >
-          <Text style={styles.postButtonText}>Post</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.background} />
+          ) : (
+            <Text style={styles.postButtonText}>Post</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -46,7 +74,9 @@ export default function TweetScreen({ navigation }) {
       <View style={styles.container}>
         {/* Avatar */}
         <View style={styles.avatar}>
-          <Text style={styles.avatarInitial}>U</Text>
+          <Text style={styles.avatarInitial}>
+            {fullname[0]?.toUpperCase() || 'U'}
+          </Text>
         </View>
 
         {/* Área de texto */}

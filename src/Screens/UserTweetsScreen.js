@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   View,
@@ -7,75 +7,76 @@ import {
   StyleSheet,
   StatusBar,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
-
-// 🧩 Tweets del usuario
-const mockTweets = [
-  {
-    id: '1',
-    user: 'John Doe',
-    username: 'johndoe',
-    date: 'Oct 19',
-    message:
-      '📌 Pinned Tweet · Building a faithful Twitter clone to sharpen UI skills. Loving the result!',
-    pinned: true,
-    stats: { replies: 54, retweets: 32, likes: 420 },
-  },
-  {
-    id: '2',
-    user: 'John Doe',
-    username: 'johndoe',
-    date: 'Oct 18',
-    message:
-      'Layouts, typography, elevation — every pixel matters. Shipping another iteration today.',
-    stats: { replies: 12, retweets: 9, likes: 210 },
-  },
-  {
-    id: '3',
-    user: 'John Doe',
-    username: 'johndoe',
-    date: 'Oct 15',
-    message:
-      'Dark mode and animations next on the list. Appreciate the feedback from the community!',
-    stats: { replies: 6, retweets: 4, likes: 150 },
-  },
-];
+import { getTweetsByUser } from '../Services/tweetService';
 
 const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
 
-export default function UserTweetsScreen() {
+export default function UserTweetsScreen({ route, navigation }) {
+  const [tweets, setTweets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const username = route.params?.username || 'user';
+  const fullname = route.params?.fullname || 'Usuario';
+
+  useEffect(() => {
+    const fetchUserTweets = async () => {
+      try {
+        const data = await getTweetsByUser(username);
+        setTweets(data);
+      } catch (error) {
+        console.error('Error loading user tweets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUserTweets();
+  }, [username]);
+
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarInitial}>{item.user[0]}</Text>
+        <Text style={styles.avatarInitial}>
+          {(item.fullname?.[0] || item.username?.[0] || 'U').toUpperCase()}
+        </Text>
       </View>
       <View style={styles.tweetBody}>
-        {item.pinned && <Text style={styles.pinnedLabel}>📌 Pinned</Text>}
         <View style={styles.tweetHeader}>
-          <Text style={styles.tweetName}>{item.user}</Text>
-          <Text style={styles.tweetMeta}>
-            @{item.username} · {item.date}
-          </Text>
+          <Text style={styles.tweetName}>{item.fullname}</Text>
+          <Text style={styles.tweetMeta}>@{item.username}</Text>
           <Text style={styles.moreIcon}>⋯</Text>
         </View>
-        <Text style={styles.tweetContent}>{item.message}</Text>
+        <Text style={styles.tweetContent}>{item.content}</Text>
         <View style={styles.tweetActions}>
-          <ActionStat icon="💬" value={item.stats.replies} />
-          <ActionStat icon="🔁" value={item.stats.retweets} />
-          <ActionStat icon="❤️" value={item.stats.likes} highlight />
+          <ActionStat icon="💬" />
+          <ActionStat icon="🔁" />
+          <ActionStat icon="❤️" highlight />
           <ActionStat icon="📤" />
         </View>
       </View>
     </View>
   );
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ActivityIndicator
+          size="large"
+          color={colors.primary}
+          style={{ marginTop: 50 }}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       <FlatList
-        data={mockTweets}
+        data={tweets}
         keyExtractor={(item) => item.id}
         renderItem={renderTweet}
         showsVerticalScrollIndicator={false}
@@ -84,10 +85,14 @@ export default function UserTweetsScreen() {
           <>
             {/* Header superior */}
             <View style={styles.topBar}>
-              <Text style={styles.backArrow}>‹</Text>
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <Text style={styles.backArrow}>‹</Text>
+              </TouchableOpacity>
               <View>
-                <Text style={styles.topBarName}>John Doe</Text>
-                <Text style={styles.topBarCount}>258 posts</Text>
+                <Text style={styles.topBarName}>{fullname}</Text>
+                <Text style={styles.topBarCount}>
+                  {tweets.length} posts
+                </Text>
               </View>
             </View>
 
@@ -97,24 +102,25 @@ export default function UserTweetsScreen() {
             {/* Perfil */}
             <View style={styles.profileCard}>
               <View style={styles.profileAvatar}>
-                <Text style={styles.profileAvatarInitial}>J</Text>
+                <Text style={styles.profileAvatarInitial}>
+                  {fullname[0]?.toUpperCase() || 'U'}
+                </Text>
               </View>
               <TouchableOpacity style={styles.editButton}>
                 <Text style={styles.editButtonText}>Edit profile</Text>
               </TouchableOpacity>
 
-              <Text style={styles.profileName}>John Doe</Text>
-              <Text style={styles.profileUsername}>@johndoe</Text>
+              <Text style={styles.profileName}>{fullname}</Text>
+              <Text style={styles.profileUsername}>@{username}</Text>
 
               <Text style={styles.profileBio}>
-                Product designer · Pixel perfectionist · Rebuilding X in React
-                Native 💙
+                Product designer · Pixel perfectionist · Rebuilding X in React Native 💙
               </Text>
 
               <View style={styles.profileMetaRow}>
-                <Text style={styles.profileMeta}>📍 Mexico City</Text>
+                <Text style={styles.profileMeta}>📍 Medellín, Colombia</Text>
                 <Text style={styles.dot}>·</Text>
-                <Text style={styles.profileMeta}>Joined May 2020</Text>
+                <Text style={styles.profileMeta}>Joined May 2024</Text>
               </View>
 
               <View style={styles.profileStats}>
@@ -251,7 +257,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
   },
-  tabItemActive: {},
   tabLabel: { color: colors.textLight, fontWeight: '600' },
   tabLabelActive: { color: colors.text },
   tabIndicator: {
@@ -280,7 +285,6 @@ const styles = StyleSheet.create({
   },
   avatarInitial: { color: colors.text, fontWeight: '700' },
   tweetBody: { flex: 1, gap: spacing.sm },
-  pinnedLabel: { color: colors.textLight, fontSize: typography.caption },
   tweetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
