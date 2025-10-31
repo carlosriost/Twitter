@@ -23,7 +23,10 @@ export default function LoginScreen({ navigation }) {
 
 
 const handleLogin = async () => {
-  if (!email || !password) return;
+  if (!email || !password) {
+    alert("Por favor, completa ambos campos.");
+    return;
+  }
 
   setLoading(true);
   try {
@@ -32,18 +35,31 @@ const handleLogin = async () => {
 
     console.log("✅ Sesión iniciada. Perfil del usuario:", profile);
 
-    navigation.navigate("Home", { 
-      uid: user.uid, 
-      username: profile?.username || "user", 
-      fullname: profile?.fullname || "Usuario" 
+    navigation.navigate("Home", {
+      uid: user.uid,
+      username: profile?.username || "user",
+      fullname: profile?.fullname || "Usuario",
     });
   } catch (error) {
     console.error("❌ Error al iniciar sesión:", error);
-    alert("Error al iniciar sesión: " + error.message);
+
+    // 🧩 Manejo específico de errores de Firebase
+    if (error.code === "auth/invalid-email") {
+      alert("El correo ingresado no es válido.");
+    } else if (error.code === "auth/user-not-found") {
+      alert("No existe una cuenta con este correo.");
+    } else if (error.code === "auth/wrong-password") {
+      alert("La contraseña es incorrecta.");
+    } else if (error.code === "auth/email-already-in-use") {
+      alert("Este correo ya está registrado. Por favor inicia sesión.");
+    } else {
+      alert("Error al iniciar sesión: " + error.message);
+    }
   } finally {
     setLoading(false);
   }
 };
+
 
 
 

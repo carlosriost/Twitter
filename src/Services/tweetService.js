@@ -1,5 +1,5 @@
 import { db } from '../Config/firebaseConfig';
-import { addDoc, collection, serverTimestamp, query, orderBy, getDocs, where, query } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, query, orderBy, getDocs, where} from 'firebase/firestore';
 
 
 export const postTweet = async (uid, username, fullname, text) => {

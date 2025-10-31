@@ -1,6 +1,31 @@
 // src/Services/userService.js
 import { db } from '../Config/firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+
+/**
+ * 🔹 Crear perfil del usuario en Firestore (solo se usa al registrarse)
+ * @param {string} uid - ID del usuario autenticado
+ * @param {string} username - Nombre de usuario (@)
+ * @param {string} fullname - Nombre completo
+ * @param {string} email - Correo electrónico
+ */
+export const createUserProfile = async (uid, username, fullname, email) => {
+  try {
+    const ref = doc(db, 'users', uid);
+    await setDoc(ref, {
+      username,
+      fullname,
+      email,
+      bio: '',
+      photoURL: '',
+      createdAt: new Date(),
+    });
+    console.log("✅ Perfil creado exitosamente en Firestore");
+  } catch (error) {
+    console.error("❌ Error al crear perfil:", error.message);
+    throw error;
+  }
+};
 
 /**
  * 🔹 Obtener el perfil del usuario desde Firestore

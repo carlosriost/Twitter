@@ -11,9 +11,9 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { colors, spacing, radii, typography } from '../Styles/theme';
-import { auth, db, storage } from '../config/firebase';
+import { auth, db, storage } from '../Config/firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -48,24 +48,26 @@ export default function EditProfileScreen({ navigation }) {
   }, []);
 
   // 📸 Escoger nueva foto de perfil
-  const handlePickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permiso requerido', 'Se necesita acceso a la galería.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setPhotoURL(result.assets[0].uri);
-    }
+const handlePickImage = async () => {
+  const options = {
+    mediaType: 'photo',
+    quality: 0.8,
+    includeBase64: false,
   };
+
+  launchImageLibrary(options, (response) => {
+    if (response.didCancel) {
+      console.log('Selección cancelada');
+    } else if (response.errorCode) {
+      console.log('Error:', response.errorMessage);
+      Alert.alert('Error', 'No se pudo acceder a la galería.');
+    } else if (response.assets && response.assets.length > 0) {
+      const uri = response.assets[0].uri;
+      setPhotoURL(uri);
+    }
+  });
+};
+
 
   // 💾 Guardar cambios
   const handleSave = async () => {

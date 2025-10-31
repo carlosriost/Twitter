@@ -9,7 +9,8 @@ import TweetScreen from './src/Screens/TweetScreen';
 import FollowersScreen from './src/Screens/FollowersScreen';
 import FollowingScreen from './src/Screens/FollowingScreen';
 import UserTweetsScreen from './src/Screens/UserTweetsScreen';
-
+import ProfileScreen from './src/Screens/ProfileScreen';
+import EditProfileScreen from './src/Screens/EditProfileScreen';
 const Stack = createStackNavigator();
 
 export default function App() {

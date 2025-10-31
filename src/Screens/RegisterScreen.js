@@ -12,35 +12,53 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
+import { auth } from '../Config/firebaseConfig';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../config/firebase';
-import { doc, setDoc } from 'firebase/firestore';
-import { registerUser } from '../Services/authService';
 import { createUserProfile } from '../Services/userService';
 
 export default function RegisterScreen({ navigation }) {
-  const [fullName, setFullName] = useState('');
+  const [fullname, setFullname] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const isFormValid =
-    fullName.trim() &&
-    username.trim() &&
-    email.trim() &&
-    password.trim().length >= 8;
+  const handleRegister = async () => {
+    if (!fullname.trim() || !username.trim() || !email.trim() || !password.trim()) {
+      Alert.alert('Campos incompletos', 'Por favor, completa todos los campos.');
+      return;
+    }
 
-const handleRegister = async () => {
-  try {
-    const user = await registerUser(email, password, username, fullName);
-    await createUserProfile(user.uid, { fullName, username, email });
-    alert("Cuenta creada con éxito 🎉");
-    navigation.navigate("Login");
-  } catch (error) {
-    alert("Error al registrar: " + error.message);
-  }
-};
+    setLoading(true);
+    try {
+      // 🔹 Crear usuario en Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log('✅ Usuario creado:', user.uid);
+
+      // 🔹 Crear perfil en Firestore
+      await createUserProfile(user.uid, username, fullname, email);
+
+      Alert.alert('✅ Registro exitoso', 'Tu cuenta fue creada correctamente.');
+      navigation.navigate('Login');
+    } catch (error) {
+      console.error('❌ Error al registrar:', error.message);
+      if (error.code === 'auth/email-already-in-use') {
+        Alert.alert(
+          'Correo ya registrado',
+          'Este correo ya está en uso. Por favor inicia sesión o usa otro.'
+        );
+      } else if (error.code === 'auth/invalid-email') {
+        Alert.alert('Correo inválido', 'Por favor ingresa un correo válido.');
+      } else if (error.code === 'auth/weak-password') {
+        Alert.alert('Contraseña débil', 'La contraseña debe tener al menos 6 caracteres.');
+      } else {
+        Alert.alert('Error al registrar', 'Firebase: ' + error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -50,70 +68,56 @@ const handleRegister = async () => {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo */}
         <View style={styles.logoRow}>
           <Text style={styles.logo}>𝕏</Text>
         </View>
 
         <Text style={styles.title}>Create your account</Text>
 
-        <View style={styles.progressTrack}>
-          <View style={styles.progressFill} />
-        </View>
-
         <View style={styles.formCard}>
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Your full name"
-              placeholderTextColor={colors.textLight}
-              value={fullName}
-              onChangeText={setFullName}
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Name"
+            placeholderTextColor={colors.textLight}
+            value={fullname}
+            onChangeText={setFullname}
+          />
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Username</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="@username"
-              placeholderTextColor={colors.textLight}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            placeholderTextColor={colors.textLight}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="name@example.com"
-              placeholderTextColor={colors.textLight}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={colors.textLight}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="At least 8 characters"
-              placeholderTextColor={colors.textLight}
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={colors.textLight}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
           <TouchableOpacity
-            style={[styles.primaryButton, !isFormValid && styles.primaryButtonDisabled]}
+            style={[
+              styles.primaryButton,
+              (!fullname || !username || !email || !password) && styles.primaryButtonDisabled,
+            ]}
             onPress={handleRegister}
-            disabled={!isFormValid || loading}
+            disabled={!fullname || !username || !email || !password || loading}
           >
             {loading ? (
               <ActivityIndicator color={colors.background} />
@@ -134,7 +138,7 @@ const handleRegister = async () => {
   );
 }
 
-// 🔸 Estilos (idénticos a los tuyos)
+// 🎨 Mantiene tus estilos originales
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
@@ -144,26 +148,16 @@ const styles = StyleSheet.create({
     fontSize: typography.title + 2,
     fontWeight: '800',
     color: colors.text,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xl,
   },
-  progressTrack: {
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: radii.sm,
-    overflow: 'hidden',
-    marginBottom: spacing.lg,
-  },
-  progressFill: { height: '100%', width: '60%', backgroundColor: colors.primary },
   formCard: {
     backgroundColor: colors.elevated,
     borderRadius: radii.lg,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.lg,
     gap: spacing.md,
   },
-  fieldGroup: { gap: spacing.xs },
-  label: { fontSize: typography.caption, color: colors.textLight },
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -179,10 +173,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     paddingVertical: spacing.sm + spacing.xs,
     alignItems: 'center',
-    marginTop: spacing.md,
   },
-  primaryButtonDisabled: { backgroundColor: colors.accent },
   primaryButtonText: { color: colors.background, fontSize: typography.subtitle, fontWeight: '700' },
+  primaryButtonDisabled: { backgroundColor: colors.accent },
   footerPrompt: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -191,5 +184,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   footerText: { color: colors.textLight, fontSize: typography.caption },
-  footerLink: { color: colors.primary, fontWeight: '700', fontSize: typography.caption },
+  footerLink: { color: colors.primary, fontSize: typography.caption, fontWeight: '700' },
 });

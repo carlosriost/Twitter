@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
-import { db } from '../config/firebase';
+import {db} from '../Config/firebaseConfig';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function TweetScreen({ navigation, route }) {

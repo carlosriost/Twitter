@@ -11,7 +11,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
-import { auth, db } from '../config/firebase';
+import { auth, db } from '../Config/firebaseConfig';
 import { doc, getDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 
 export default function ProfileScreen({ navigation }) {
