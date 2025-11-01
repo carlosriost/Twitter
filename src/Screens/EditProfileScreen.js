@@ -16,6 +16,7 @@ import { colors, spacing, radii, typography } from '../Styles/theme';
 import { auth, db, storage } from '../Config/firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { profileStore } from '../Services/profileStore'; // ✅ importante
 
 export default function EditProfileScreen({ navigation }) {
   const user = auth.currentUser;
@@ -36,6 +37,7 @@ export default function EditProfileScreen({ navigation }) {
           setFullname(data.fullname || '');
           setBio(data.bio || '');
           setPhotoURL(data.photoURL || null);
+          profileStore.setProfile({ uid: user.uid, ...data }); // 🧩 sincroniza estado global
         }
       } catch (error) {
         console.error('Error al cargar el perfil:', error);
@@ -48,26 +50,25 @@ export default function EditProfileScreen({ navigation }) {
   }, []);
 
   // 📸 Escoger nueva foto de perfil
-const handlePickImage = async () => {
-  const options = {
-    mediaType: 'photo',
-    quality: 0.8,
-    includeBase64: false,
+  const handlePickImage = async () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.8,
+      includeBase64: false,
+    };
+
+    launchImageLibrary(options, (response) => {
+      if (response.didCancel) {
+        console.log('Selección cancelada');
+      } else if (response.errorCode) {
+        console.log('Error:', response.errorMessage);
+        Alert.alert('Error', 'No se pudo acceder a la galería.');
+      } else if (response.assets && response.assets.length > 0) {
+        const uri = response.assets[0].uri;
+        setPhotoURL(uri);
+      }
+    });
   };
-
-  launchImageLibrary(options, (response) => {
-    if (response.didCancel) {
-      console.log('Selección cancelada');
-    } else if (response.errorCode) {
-      console.log('Error:', response.errorMessage);
-      Alert.alert('Error', 'No se pudo acceder a la galería.');
-    } else if (response.assets && response.assets.length > 0) {
-      const uri = response.assets[0].uri;
-      setPhotoURL(uri);
-    }
-  });
-};
-
 
   // 💾 Guardar cambios
   const handleSave = async () => {
@@ -80,7 +81,7 @@ const handlePickImage = async () => {
     try {
       let newPhotoURL = photoURL;
 
-      // 🔹 Subir imagen si es nueva (no URL)
+      // 🔹 Subir imagen si es nueva (no URL remota)
       if (photoURL && !photoURL.startsWith('https://')) {
         const response = await fetch(photoURL);
         const blob = await response.blob();
@@ -91,12 +92,20 @@ const handlePickImage = async () => {
 
       // 🔹 Actualizar Firestore
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        fullname,
-        bio,
-        photoURL: newPhotoURL,
+      const updates = {
+        fullname: fullname.trim(),
+        bio: bio.trim(),
+        photoURL: newPhotoURL || '',
         updatedAt: new Date(),
-      });
+      };
+      await updateDoc(userRef, updates);
+
+      // 🔁 Actualizar estado local + global
+      const refreshed = { uid: user.uid, ...updates };
+      profileStore.setProfile(refreshed); // 🔁 propaga cambios globalmente
+      setFullname(refreshed.fullname);
+      setBio(refreshed.bio);
+      setPhotoURL(refreshed.photoURL);
 
       Alert.alert('✅ Perfil actualizado', 'Los cambios se guardaron correctamente.');
       navigation.goBack();

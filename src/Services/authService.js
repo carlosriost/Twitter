@@ -6,6 +6,8 @@ import {
   signOut 
 } from 'firebase/auth';
 import { setDoc, doc } from 'firebase/firestore';
+import { profileStore } from './profileStore';
+
 
 /**
  * 🔹 Registrar usuario nuevo (Auth + Firestore)
@@ -49,6 +51,7 @@ export const loginUser = async (email, password) => {
 export const logoutUser = async () => {
   try {
     await signOut(auth);
+    profileStore.clearProfile();
     console.log("🚪 Sesión cerrada correctamente");
   } catch (error) {
     console.error("❌ Error cerrando sesión:", error.message);

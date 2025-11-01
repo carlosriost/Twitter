@@ -12,65 +12,139 @@ import {
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
 import { auth, db } from '../Config/firebaseConfig';
-import { doc, getDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import {
+  doc,
+  onSnapshot,
+  collection,
+  query,
+  where,
+  orderBy,
+} from 'firebase/firestore';
+import { profileStore } from '../Services/profileStore';
+
+const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
 
 export default function ProfileScreen({ navigation }) {
   const user = auth.currentUser;
-  const [userData, setUserData] = useState(null);
+  const [userData, setUserData] = useState(profileStore.getProfile());
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('Posts');
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // 🔹 Cargar datos del usuario desde Firestore
+  // 🔹 Escuchar perfil y tweets en tiempo real
   useEffect(() => {
-  const loadProfileAndTweets = async () => {
+    if (!user?.uid) return;
+
+    let unsubscribeUser = null;
+    let unsubscribeTweets = null;
+
+    setLoading(true);
+
     try {
-      setLoading(true);
-
-      // 🔹 1️⃣ Cargar datos del usuario
+      // 👤 Escucha perfil del usuario
       const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
+      unsubscribeUser = onSnapshot(
+        userRef,
+        (snapshot) => {
+          if (!snapshot.exists()) {
+            setUserData(null);
+            setTweets([]);
+            profileStore.clearProfile();
+            setError('Perfil no encontrado.');
+            setLoading(false);
+            return;
+          }
 
-      if (userSnap.exists()) {
-        const data = userSnap.data();
-        setUserData(data);
+          const data = snapshot.data();
+          setUserData(data);
+          profileStore.setProfile({ uid: user.uid, ...data });
+          setError(null);
+          setLoading(false);
+        },
+        (err) => {
+          console.error('❌ Error en perfil:', err);
+          setError('No se pudo cargar el perfil.');
+          setLoading(false);
+        }
+      );
 
-        // 🔹 2️⃣ Cargar tweets de ese usuario (solo si hay username)
-        if (data.username) {
-          const tweetsRef = collection(db, 'tweets');
-          const q = query(
-            tweetsRef,
-            where('username', '==', data.username),
-            orderBy('createdAt', 'desc')
-          );
-          const querySnap = await getDocs(q);
-          const userTweets = querySnap.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
+      // 🐦 Escucha los tweets del usuario
+      const tweetsRef = collection(db, 'tweets');
+      const tweetsQuery = query(
+        tweetsRef,
+        where('username', '==', userData?.username || user?.displayName || ''),
+        orderBy('createdAt', 'desc')
+      );
+
+      unsubscribeTweets = onSnapshot(
+        tweetsQuery,
+        (snapshot) => {
+          const loaded = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
           }));
-          setTweets(userTweets);
-        } else {
+          setTweets(loaded);
+        },
+        (err) => {
+          console.error('❌ Error al escuchar tweets:', err);
           setTweets([]);
         }
-      } else {
-        console.warn("No se encontró el perfil del usuario en Firestore.");
-        setUserData(null);
-      }
-    } catch (error) {
-      console.error("❌ Error al cargar perfil o tweets:", error);
-    } finally {
-      setLoading(false);
+      );
+    } catch (err) {
+      console.error('Error inicial:', err);
+      setError('Error al cargar el perfil.');
+    }
+
+    // 🔁 Refrescar cuando vuelve desde EditProfile
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      setRefreshing(true);
+      setTimeout(() => setRefreshing(false), 800);
+    });
+
+    return () => {
+      if (unsubscribeUser) unsubscribeUser();
+      if (unsubscribeTweets) unsubscribeTweets();
+      unsubscribeFocus();
+    };
+  }, [navigation, user?.uid, userData?.username]);
+
+  // 🔁 Tabs simuladas
+  const handleSelectTab = (tab) => {
+    setActiveTab(tab);
+    if (tab !== 'Posts') {
+      setTabLoading(true);
+      setTweets([]);
+      setTimeout(() => setTabLoading(false), 500);
     }
   };
 
-  // 👇 Escucha cuando la pantalla vuelve a estar activa (después de editar perfil)
-  const unsubscribe = navigation.addListener("focus", loadProfileAndTweets);
-
-  // 🔁 También se ejecuta al montar el componente
-  loadProfileAndTweets();
-
-  return unsubscribe;
-}, [navigation]);
-
+  // 🐦 Render de cada tweet
+  const renderTweet = ({ item }) => (
+    <TouchableOpacity
+      style={styles.tweetRow}
+      onPress={() => navigation.navigate('TweetDetail', { tweetId: item.id, tweet: item })}
+    >
+      <View style={styles.avatarSmall}>
+        {userData?.photoURL ? (
+          <Image source={{ uri: userData.photoURL }} style={styles.avatarImg} />
+        ) : (
+          <Text style={styles.avatarInitial}>
+            {(userData?.fullname?.[0] || '?').toUpperCase()}
+          </Text>
+        )}
+      </View>
+      <View style={styles.tweetBody}>
+        <Text style={styles.tweetHeader}>
+          <Text style={styles.tweetName}>{userData?.fullname}</Text>{' '}
+          <Text style={styles.tweetMeta}>@{userData?.username}</Text>
+        </Text>
+        <Text style={styles.tweetContent}>{item.content || item.text}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   if (loading) {
     return (
@@ -80,44 +154,35 @@ export default function ProfileScreen({ navigation }) {
     );
   }
 
-  if (!userData) {
+  if (error || !userData) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <Text style={{ color: colors.textLight }}>No se pudo cargar el perfil</Text>
+        <Text style={{ color: colors.textLight }}>{error || 'No se pudo cargar el perfil.'}</Text>
       </SafeAreaView>
     );
   }
-
-  const renderTweet = ({ item }) => (
-    <View style={styles.tweetRow}>
-      <View style={styles.avatarSmall}>
-        <Text style={styles.avatarInitial}>{userData.fullname[0]}</Text>
-      </View>
-      <View style={styles.tweetBody}>
-        <Text style={styles.tweetHeader}>
-          <Text style={styles.tweetName}>{userData.fullname}</Text>{' '}
-          <Text style={styles.tweetMeta}>@{userData.username}</Text>
-        </Text>
-        <Text style={styles.tweetContent}>{item.content}</Text>
-      </View>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       {/* Header */}
-
-      
-
       <View style={styles.topBar}>
-        <Text style={styles.backArrow}>‹</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backArrow}>‹</Text>
+        </TouchableOpacity>
         <View>
           <Text style={styles.topBarName}>{userData.fullname}</Text>
           <Text style={styles.topBarCount}>{tweets.length} posts</Text>
         </View>
       </View>
+
+      {refreshing && (
+        <View style={styles.refreshBanner}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.refreshText}>Actualizando perfil…</Text>
+        </View>
+      )}
 
       {/* Banner */}
       <View style={styles.banner} />
@@ -152,14 +217,42 @@ export default function ProfileScreen({ navigation }) {
         )}
       </View>
 
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        {profileTabs.map((tab) => {
+          const isActive = activeTab === tab;
+          return (
+            <TouchableOpacity
+              key={tab}
+              style={styles.tabItem}
+              onPress={() => handleSelectTab(tab)}
+            >
+              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab}</Text>
+              {isActive && <View style={styles.tabIndicator} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       {/* Tweets */}
-      <FlatList
-        data={tweets}
-        keyExtractor={(item) => item.id}
-        renderItem={renderTweet}
-        contentContainerStyle={{ paddingBottom: spacing.xl }}
-        showsVerticalScrollIndicator={false}
-      />
+      {tabLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={tweets}
+          keyExtractor={(item) => item.id}
+          renderItem={renderTweet}
+          contentContainerStyle={{ paddingBottom: spacing.xl }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No hay publicaciones aún</Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -191,6 +284,17 @@ const styles = StyleSheet.create({
     borderColor: colors.background,
   },
   profileAvatar: { width: 84, height: 84, borderRadius: radii.pill },
+  refreshBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  refreshText: {
+    color: colors.textLight,
+    fontSize: typography.caption,
+  },
   editButton: {
     alignSelf: 'flex-end',
     borderWidth: 1,
@@ -204,6 +308,22 @@ const styles = StyleSheet.create({
   profileUsername: { color: colors.textLight, fontSize: typography.body },
   profileBio: { color: colors.text, fontSize: typography.body, lineHeight: 22 },
   profileBioMuted: { color: colors.textLight, fontStyle: 'italic' },
+  tabRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingVertical: spacing.xs,
+  },
+  tabItem: { alignItems: 'center' },
+  tabLabel: { color: colors.textLight, fontSize: typography.subtitle },
+  tabLabelActive: { color: colors.text, fontWeight: '700' },
+  tabIndicator: {
+    height: 3,
+    backgroundColor: colors.primary,
+    marginTop: 4,
+    width: '100%',
+  },
   tweetRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.md,
@@ -220,10 +340,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: spacing.md,
   },
+  avatarImg: { width: 48, height: 48, borderRadius: radii.pill },
   avatarInitial: { color: colors.text, fontWeight: '700' },
   tweetBody: { flex: 1 },
   tweetHeader: { marginBottom: spacing.xs },
   tweetName: { fontWeight: '700', color: colors.text },
   tweetMeta: { color: colors.textLight, fontSize: typography.caption },
   tweetContent: { color: colors.text, fontSize: typography.body, lineHeight: 22 },
+  emptyState: { paddingVertical: spacing.lg, alignItems: 'center' },
+  emptyText: { color: colors.textLight, fontSize: typography.caption },
 });

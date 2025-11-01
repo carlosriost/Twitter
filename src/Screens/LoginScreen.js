@@ -14,6 +14,7 @@ import {
 import { colors, spacing, radii, typography } from '../Styles/theme';
 import { loginUser } from '../Services/authService';
 import { getUserProfile } from '../Services/userService';
+import { profileStore } from '../Services/profileStore';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -34,6 +35,11 @@ const handleLogin = async () => {
     const profile = await getUserProfile(user.uid);
 
     console.log("✅ Sesión iniciada. Perfil del usuario:", profile);
+    if (profile) {
+      profileStore.setProfile({ uid: user.uid, ...profile });
+    } else {
+      profileStore.setProfile({ uid: user.uid });
+    }
 
     navigation.navigate("Home", {
       uid: user.uid,

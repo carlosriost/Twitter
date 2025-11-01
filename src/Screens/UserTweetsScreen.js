@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   SafeAreaView,
   View,
@@ -8,51 +8,153 @@ import {
   StatusBar,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
+  Image,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
-import { getTweetsByUser } from '../Services/tweetService';
+import { auth } from '../Config/firebaseConfig';
+import {
+  getTweetsByUser,
+  subscribeToTweetsByUser,
+} from '../Services/tweetService';
+import { toggleLike, toggleRetweet } from '../Services/engagementService';
 
 const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
 
 export default function UserTweetsScreen({ route, navigation }) {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(auth.currentUser?.uid ?? null);
 
   const username = route.params?.username || 'user';
   const fullname = route.params?.fullname || 'Usuario';
 
+  // 🔹 Mantener autenticación actualizada
   useEffect(() => {
-    const fetchUserTweets = async () => {
-      try {
-        const data = await getTweetsByUser(username);
-        setTweets(data);
-      } catch (error) {
-        console.error('Error loading user tweets:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserTweets();
-  }, [username]);
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      setCurrentUserId(user?.uid ?? null);
+    });
+    return () => unsubscribeAuth();
+  }, []);
 
+  // 🔹 Escuchar tweets en tiempo real
+  useEffect(() => {
+    let unsubscribe;
+    try {
+      unsubscribe = subscribeToTweetsByUser({
+        username,
+        currentUserId,
+        onUpdate: (data) => setTweets(data),
+      });
+    } catch (error) {
+      console.error('Error loading user tweets:', error);
+      Alert.alert('Error', 'No se pudieron cargar los tweets.');
+    } finally {
+      setLoading(false);
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [username, currentUserId]);
+
+  // 🔒 Validar autenticación antes de interactuar
+  const ensureAuthenticated = useCallback(() => {
+    if (!currentUserId) {
+      Alert.alert('Autenticación requerida', 'Inicia sesión para interactuar con los tweets.');
+      return false;
+    }
+    return true;
+  }, [currentUserId]);
+
+  // ❤️ Like
+  const handleToggleLike = useCallback(
+    async (tweetId) => {
+      if (!ensureAuthenticated()) return;
+      try {
+        await toggleLike(tweetId, currentUserId);
+      } catch (error) {
+        console.error('Error toggling like:', error);
+      }
+    },
+    [currentUserId, ensureAuthenticated]
+  );
+
+  // 🔁 Retweet
+  const handleToggleRetweet = useCallback(
+    async (tweetId) => {
+      if (!ensureAuthenticated()) return;
+      try {
+        await toggleRetweet(tweetId, currentUserId);
+      } catch (error) {
+        console.error('Error toggling retweet:', error);
+      }
+    },
+    [currentUserId, ensureAuthenticated]
+  );
+
+  // 🧩 Render de cada tweet
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
+      {/* Avatar */}
       <View style={styles.avatar}>
         <Text style={styles.avatarInitial}>
           {(item.fullname?.[0] || item.username?.[0] || 'U').toUpperCase()}
         </Text>
       </View>
+
+      {/* Contenido del tweet */}
       <View style={styles.tweetBody}>
         <View style={styles.tweetHeader}>
           <Text style={styles.tweetName}>{item.fullname}</Text>
           <Text style={styles.tweetMeta}>@{item.username}</Text>
           <Text style={styles.moreIcon}>⋯</Text>
         </View>
-        <Text style={styles.tweetContent}>{item.content}</Text>
+
+        {!!(item.text || item.content) && (
+          <Text style={styles.tweetContent}>{item.text || item.content}</Text>
+        )}
+
+        {/* 🖼️ Mostrar imágenes adjuntas */}
+        {Array.isArray(item.media) && item.media.length > 0 && (
+          <View
+            style={[
+              styles.mediaGrid,
+              item.media.length === 1 && styles.mediaGridSingle,
+            ]}
+          >
+            {item.media.map((mediaItem, index) => (
+              <Image
+                key={`${mediaItem.url}-${index}`}
+                source={{ uri: mediaItem.url }}
+                style={[
+                  item.media.length === 1
+                    ? styles.mediaImageSingle
+                    : styles.mediaImageMultiple,
+                ]}
+                resizeMode="cover"
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Acciones */}
         <View style={styles.tweetActions}>
-          <ActionStat icon="💬" />
-          <ActionStat icon="🔁" />
-          <ActionStat icon="❤️" highlight />
+          <ActionStat icon="💬" value={item.repliesCount} />
+          <ActionStat
+            icon="🔁"
+            value={item.retweetsCount}
+            highlight={item.retweeted}
+            onPress={() => handleToggleRetweet(item.id)}
+            disabled={!currentUserId}
+          />
+          <ActionStat
+            icon="❤️"
+            value={item.likesCount}
+            highlight={item.liked}
+            onPress={() => handleToggleLike(item.id)}
+            disabled={!currentUserId}
+          />
           <ActionStat icon="📤" />
         </View>
       </View>
@@ -90,9 +192,7 @@ export default function UserTweetsScreen({ route, navigation }) {
               </TouchableOpacity>
               <View>
                 <Text style={styles.topBarName}>{fullname}</Text>
-                <Text style={styles.topBarCount}>
-                  {tweets.length} posts
-                </Text>
+                <Text style={styles.topBarCount}>{tweets.length} posts</Text>
               </View>
             </View>
 
@@ -159,27 +259,50 @@ export default function UserTweetsScreen({ route, navigation }) {
   );
 }
 
-function ActionStat({ icon, value, highlight = false }) {
-  return (
-    <View style={styles.actionStat}>
-      <Text style={[styles.actionIcon, highlight && styles.actionIconHighlight]}>
+/* 💬 Componente ActionStat */
+function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
+  const content = (
+    <>
+      <Text
+        style={[
+          styles.actionIcon,
+          highlight && styles.actionIconHighlight,
+          disabled && styles.actionIconDisabled,
+        ]}
+      >
         {icon}
       </Text>
       {!!value && (
         <Text
-          style={[styles.actionValue, highlight && styles.actionValueHighlight]}
+          style={[
+            styles.actionValue,
+            highlight && styles.actionValueHighlight,
+            disabled && styles.actionValueDisabled,
+          ]}
         >
           {value}
         </Text>
       )}
-    </View>
+    </>
+  );
+
+  if (!onPress) return <View style={styles.actionStat}>{content}</View>;
+
+  return (
+    <TouchableOpacity
+      style={[styles.actionStat, styles.actionStatPressable]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      {content}
+    </TouchableOpacity>
   );
 }
 
+/* 🎨 Estilos */
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   listContent: { paddingBottom: spacing.xl },
-
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -194,11 +317,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   topBarCount: { color: colors.textLight, fontSize: typography.caption },
-
-  banner: {
-    height: 150,
-    backgroundColor: colors.surface,
-  },
+  banner: { height: 150, backgroundColor: colors.surface },
   profileCard: {
     paddingHorizontal: spacing.md,
     marginTop: -36,
@@ -243,7 +362,6 @@ const styles = StyleSheet.create({
   profileStats: { flexDirection: 'row', gap: spacing.lg },
   profileStat: { color: colors.textLight, fontSize: typography.caption },
   profileStatNumber: { color: colors.text, fontWeight: '700' },
-
   tabRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -266,7 +384,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     marginTop: spacing.xs,
   },
-
   tweetRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.md,
@@ -292,24 +409,27 @@ const styles = StyleSheet.create({
   },
   tweetName: { fontWeight: '700', color: colors.text },
   tweetMeta: { color: colors.textLight, fontSize: typography.caption },
-  moreIcon: {
-    color: colors.textLight,
-    fontSize: typography.subtitle,
-    marginLeft: 'auto',
+  moreIcon: { color: colors.textLight, fontSize: typography.subtitle, marginLeft: 'auto' },
+  tweetContent: { color: colors.text, fontSize: typography.body, lineHeight: 22 },
+
+  /* 🖼️ Estilos de imágenes */
+  mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  mediaGridSingle: { width: '100%', borderRadius: radii.lg, overflow: 'hidden' },
+  mediaImageSingle: { width: '100%', aspectRatio: 16 / 9, borderRadius: radii.lg },
+  mediaImageMultiple: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    aspectRatio: 1,
+    borderRadius: radii.md,
   },
-  tweetContent: {
-    color: colors.text,
-    fontSize: typography.body,
-    lineHeight: 22,
-  },
-  tweetActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingRight: spacing.lg,
-  },
+
+  tweetActions: { flexDirection: 'row', justifyContent: 'space-between', paddingRight: spacing.lg },
   actionStat: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  actionStatPressable: { paddingVertical: spacing.xs },
   actionIcon: { color: colors.textLight, fontSize: typography.subtitle },
   actionIconHighlight: { color: colors.danger },
+  actionIconDisabled: { color: colors.border },
   actionValue: { color: colors.textLight, fontSize: typography.caption },
   actionValueHighlight: { color: colors.danger },
+  actionValueDisabled: { color: colors.border },
 });
