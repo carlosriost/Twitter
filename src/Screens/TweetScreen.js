@@ -11,8 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
-import { db } from '../Config/firebaseConfig';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { auth } from '../Config/firebaseConfig';
 import {
   postTweet,
   createReply,
@@ -26,13 +25,17 @@ export default function TweetScreen({ navigation, route }) {
   const [currentTweet, setCurrentTweet] = useState(route.params?.tweet || null);
   const [replies, setReplies] = useState([]);
 
-  const username = route.params?.username || 'user';
-  const fullname = route.params?.fullname || 'Usuario';
-  const uid = route.params?.uid;
+  // 🔹 Usuario autenticado
+  const currentUser = auth.currentUser;
+  const uid = currentUser?.uid || null;
+  const username = currentUser?.displayName || route.params?.username || 'user';
+  const fullname = route.params?.fullname || username || 'Usuario';
+
+  // 🔹 Modo respuesta
   const isReplyMode = route.params?.mode === 'reply' && route.params?.tweetId;
   const tweetId = route.params?.tweetId;
 
-  // 🔹 Escuchar el tweet y sus respuestas (modo reply)
+  // 🔹 Escuchar tweet y respuestas
   useEffect(() => {
     if (!isReplyMode || !tweetId) return;
 
@@ -48,8 +51,12 @@ export default function TweetScreen({ navigation, route }) {
   // 🔹 Publicar tweet o respuesta
   const handlePost = async () => {
     if (!tweet.trim()) return;
-    setLoading(true);
+    if (!uid) {
+      alert('Debes iniciar sesión para publicar un tweet.');
+      return;
+    }
 
+    setLoading(true);
     try {
       if (isReplyMode && tweetId) {
         await createReply(tweetId, {
@@ -59,20 +66,13 @@ export default function TweetScreen({ navigation, route }) {
           text: tweet.trim(),
         });
       } else {
-        await addDoc(collection(db, 'tweets'), {
-          fullname,
-          username,
-          content: tweet.trim(),
-          createdAt: serverTimestamp(),
-        });
-
         await postTweet(uid, username, fullname, tweet.trim());
       }
 
       setTweet('');
       navigation.goBack();
     } catch (error) {
-      console.error('Error al publicar el tweet:', error);
+      console.error('❌ Error al publicar el tweet:', error);
       alert('Error al publicar el tweet 😢');
     } finally {
       setLoading(false);
@@ -83,7 +83,7 @@ export default function TweetScreen({ navigation, route }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Header */}
+      {/* 🔹 Header */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelText}>Cancel</Text>
@@ -111,7 +111,7 @@ export default function TweetScreen({ navigation, route }) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Modo respuesta */}
+        {/* 🔹 Si está en modo respuesta, muestra el tweet original */}
         {isReplyMode && currentTweet && (
           <View style={styles.threadCard}>
             <View style={styles.threadHeader}>
@@ -119,8 +119,7 @@ export default function TweetScreen({ navigation, route }) {
                 <Text style={styles.threadAvatarInitial}>
                   {(currentTweet.fullname?.[0] ||
                     currentTweet.username?.[0] ||
-                    'U'
-                  ).toUpperCase()}
+                    'U').toUpperCase()}
                 </Text>
               </View>
               <View style={styles.threadHeaderText}>
@@ -138,7 +137,7 @@ export default function TweetScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Compositor principal */}
+        {/* 🔹 Área para escribir tweet o respuesta */}
         <View style={styles.container}>
           <View style={styles.avatar}>
             <Text style={styles.avatarInitial}>
@@ -159,7 +158,7 @@ export default function TweetScreen({ navigation, route }) {
               onChangeText={setTweet}
             />
 
-            {/* Barra inferior */}
+            {/* 🔹 Barra inferior */}
             <View style={styles.toolbar}>
               <View style={styles.iconRow}>
                 {['🖼️', '📍', '😊'].map((icon) => (
@@ -180,7 +179,7 @@ export default function TweetScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* Respuestas visibles */}
+        {/* 🔹 Respuestas */}
         {isReplyMode && (
           <View style={styles.repliesSection}>
             <Text style={styles.repliesTitle}>Replies</Text>
@@ -193,8 +192,7 @@ export default function TweetScreen({ navigation, route }) {
                     <Text style={styles.replyAvatarInitial}>
                       {(reply.fullname?.[0] ||
                         reply.username?.[0] ||
-                        'U'
-                      ).toUpperCase()}
+                        'U').toUpperCase()}
                     </Text>
                   </View>
                   <View style={styles.replyBody}>
@@ -206,9 +204,7 @@ export default function TweetScreen({ navigation, route }) {
                         @{reply.username || 'user'}
                       </Text>
                     </View>
-                    <Text style={styles.replyContent}>
-                      {reply.text || ''}
-                    </Text>
+                    <Text style={styles.replyContent}>{reply.text || ''}</Text>
                   </View>
                 </View>
               ))
@@ -220,10 +216,9 @@ export default function TweetScreen({ navigation, route }) {
   );
 }
 
-// 🎨 Estilos
+/* 🎨 Estilos */
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
-
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -233,11 +228,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  cancelText: {
-    color: colors.textLight,
-    fontSize: typography.subtitle,
-    fontWeight: '500',
-  },
+  cancelText: { color: colors.textLight, fontSize: typography.subtitle, fontWeight: '500' },
   postButton: {
     backgroundColor: colors.primary,
     borderRadius: radii.pill,
@@ -245,12 +236,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   postButtonDisabled: { backgroundColor: colors.border },
-  postButtonText: {
-    color: colors.background,
-    fontWeight: '700',
-    fontSize: typography.subtitle,
-  },
-
+  postButtonText: { color: colors.background, fontWeight: '700', fontSize: typography.subtitle },
   scrollContent: { paddingBottom: spacing.xl },
   container: {
     flexDirection: 'row',
@@ -288,8 +274,6 @@ const styles = StyleSheet.create({
   icon: { fontSize: 20 },
   counter: { fontSize: typography.caption, color: colors.textLight },
   counterWarning: { color: colors.danger },
-
-  // 🧵 Thread / Replies
   threadCard: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
@@ -312,11 +296,9 @@ const styles = StyleSheet.create({
   threadName: { fontWeight: '700', color: colors.text },
   threadMeta: { color: colors.textLight, fontSize: typography.caption },
   threadContent: { color: colors.text, fontSize: typography.subtitle, lineHeight: 22 },
-
   repliesSection: { paddingHorizontal: spacing.md, paddingTop: spacing.lg, gap: spacing.md },
   repliesTitle: { fontSize: typography.subtitle, fontWeight: '700', color: colors.text },
   emptyReplies: { color: colors.textLight },
-
   replyRow: { flexDirection: 'row', gap: spacing.sm },
   replyAvatar: {
     width: 36,

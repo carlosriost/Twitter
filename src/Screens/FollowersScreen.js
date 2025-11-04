@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
-import { getFollowers } from '../Services/userService'; // 🔹 Importa el servicio de Firestore
+import { getFollowers } from '../Services/tweetService'; // 🔹 Importa el servicio de Firestore
 
 export default function FollowersScreen({ route, navigation }) {
   const [followers, setFollowers] = useState([]);
@@ -32,16 +32,19 @@ export default function FollowersScreen({ route, navigation }) {
     fetchFollowers();
   }, [username]);
 
-  const renderFollower = ({ item }) => (
+ const renderFollower = ({ item }) => {
+  if (!item) return null;
+  const display = String(item).trim();
+
+  return (
     <View style={styles.row}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarInitial}>{item[0]?.toUpperCase()}</Text>
+        <Text style={styles.avatarInitial}>{display[0]?.toUpperCase() || 'U'}</Text>
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.name}>{item}</Text>
-        <Text style={styles.username}>@{item}</Text>
-
+        <Text style={styles.name}>{display}</Text>
+        <Text style={styles.username}>@{display}</Text>
         <View style={styles.badgeRow}>
           <View style={styles.badgePill}>
             <Text style={styles.badgeText}>Follows you</Text>
@@ -54,6 +57,8 @@ export default function FollowersScreen({ route, navigation }) {
       </TouchableOpacity>
     </View>
   );
+};
+
 
   if (loading)
     return (

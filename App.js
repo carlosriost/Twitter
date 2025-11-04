@@ -27,6 +27,8 @@ export default function App() {
         <Stack.Screen name="UserTweets" component={UserTweetsScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        <Stack.Screen name="TweetDetail" component={TweetDetailScreen} />
+
 
       </Stack.Navigator>
     </NavigationContainer>

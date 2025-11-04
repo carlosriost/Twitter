@@ -18,14 +18,19 @@ import {
 } from 'firebase/firestore';
 
 /* ────────────────────────────────
- * 📌 Colección global de tweets
+ * 📁 Colección principal de tweets
  * ──────────────────────────────── */
 const tweetsCollection = collection(db, 'tweets');
 
 /* ────────────────────────────────
  * 👤 Obtener perfil del usuario
  * ──────────────────────────────── */
-const getUserProfile = async (uid) => {
+export const getUserProfile = async (uid) => {
+  if (!uid) {
+    console.warn('⚠️ getUserProfile llamado sin UID válido');
+    return {};
+  }
+
   try {
     const ref = doc(db, 'users', uid);
     const snap = await getDoc(ref);
@@ -37,20 +42,24 @@ const getUserProfile = async (uid) => {
 };
 
 /* ────────────────────────────────
- * 🐦 Crear tweet (soporta media[], photoURL y metadata)
+ * 🐦 Crear tweet (con media y metadata)
  * ──────────────────────────────── */
 export const postTweet = async (uid, username, fullname, text, media = []) => {
+  if (!uid || !text?.trim()) {
+    throw new Error('❌ Faltan datos obligatorios: uid o texto.');
+  }
+
   try {
     const profile = await getUserProfile(uid);
 
-    await addDoc(tweetsCollection, {
+    const newTweet = {
       uid,
       username: username || profile.username || 'user',
       fullname: fullname || profile.fullname || 'Usuario',
       photoURL: profile.photoURL || null,
-      text,
-      content: text,
-      media, // imágenes o videos [{url, type, altText}]
+      text: text.trim(),
+      content: text.trim(),
+      media: Array.isArray(media) ? media : [],
       metadata: {
         clientTimestamp: Date.now(),
         platform: 'mobile',
@@ -60,8 +69,9 @@ export const postTweet = async (uid, username, fullname, text, media = []) => {
       retweetsCount: 0,
       repliesCount: 0,
       sharesCount: 0,
-    });
+    };
 
+    await addDoc(tweetsCollection, newTweet);
     console.log('✅ Tweet publicado correctamente');
   } catch (error) {
     console.error('❌ Error al publicar el tweet:', error);
@@ -70,11 +80,30 @@ export const postTweet = async (uid, username, fullname, text, media = []) => {
 };
 
 /* ────────────────────────────────
- * 🧩 Mapeo avanzado de tweets
- * Incluye estado liked/retweeted por usuario actual
+ * 💬 Crear respuesta
+ * ──────────────────────────────── */
+export const createReply = async (tweetId, { uid, username, fullname, text }) => {
+  if (!tweetId || !uid || !text?.trim()) return;
+  const profile = await getUserProfile(uid);
+  const tweetRef = doc(db, 'tweets', tweetId);
+
+  await addDoc(collection(tweetRef, 'replies'), {
+    uid,
+    username: username || profile.username || 'user',
+    fullname: fullname || profile.fullname || 'Usuario',
+    photoURL: profile.photoURL || null,
+    text: text.trim(),
+    createdAt: serverTimestamp(),
+  });
+
+  await updateDoc(tweetRef, { repliesCount: increment(1) });
+};
+
+/* ────────────────────────────────
+ * 🧩 Mapeo de tweet (con estado del usuario actual)
  * ──────────────────────────────── */
 const mapTweetSnapshot = async (docSnap, currentUserId) => {
-  const data = docSnap.data();
+  const data = docSnap.data() || {};
   const tweet = {
     id: docSnap.id,
     ...data,
@@ -88,42 +117,48 @@ const mapTweetSnapshot = async (docSnap, currentUserId) => {
 
   if (!currentUserId) return tweet;
 
-  const [likeSnap, retweetSnap] = await Promise.all([
-    getDoc(doc(db, 'tweets', docSnap.id, 'likes', currentUserId)),
-    getDoc(doc(db, 'tweets', docSnap.id, 'retweets', currentUserId)),
-  ]);
+  try {
+    const [likeSnap, retweetSnap] = await Promise.all([
+      getDoc(doc(db, 'tweets', docSnap.id, 'likes', currentUserId)),
+      getDoc(doc(db, 'tweets', docSnap.id, 'retweets', currentUserId)),
+    ]);
 
-  return {
-    ...tweet,
-    liked: likeSnap.exists(),
-    retweeted: retweetSnap.exists(),
-  };
+    return {
+      ...tweet,
+      liked: likeSnap.exists(),
+      retweeted: retweetSnap.exists(),
+    };
+  } catch (err) {
+    console.warn('⚠️ Error al mapear acciones de tweet:', err);
+    return tweet;
+  }
 };
 
 /* ────────────────────────────────
  * 📋 Obtener tweets (Home)
  * ──────────────────────────────── */
 export const getTweets = async (currentUserId) => {
-  const tweetsQuery = query(tweetsCollection, orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(tweetsQuery);
-  return Promise.all(snapshot.docs.map((docSnap) => mapTweetSnapshot(docSnap, currentUserId)));
+  const q = query(tweetsCollection, orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  return Promise.all(snapshot.docs.map((doc) => mapTweetSnapshot(doc, currentUserId)));
 };
 
 /* ────────────────────────────────
  * 👤 Tweets por usuario
  * ──────────────────────────────── */
 export const getTweetsByUser = async (username, currentUserId) => {
-  const tweetsQuery = query(
+  if (!username) return [];
+  const q = query(
     tweetsCollection,
     where('username', '==', username),
     orderBy('createdAt', 'desc')
   );
-  const snapshot = await getDocs(tweetsQuery);
-  return Promise.all(snapshot.docs.map((docSnap) => mapTweetSnapshot(docSnap, currentUserId)));
+  const snapshot = await getDocs(q);
+  return Promise.all(snapshot.docs.map((doc) => mapTweetSnapshot(doc, currentUserId)));
 };
 
 /* ────────────────────────────────
- * 📑 Paginación
+ * 📑 Paginación de tweets
  * ──────────────────────────────── */
 export const getTweetsPaginated = async ({
   pageSize = 20,
@@ -135,8 +170,8 @@ export const getTweetsPaginated = async ({
   if (username) constraints.unshift(where('username', '==', username));
   if (cursor) constraints.push(startAfter(cursor));
 
-  const tweetsQuery = query(tweetsCollection, ...constraints);
-  const snapshot = await getDocs(tweetsQuery);
+  const q = query(tweetsCollection, ...constraints);
+  const snapshot = await getDocs(q);
 
   const tweets = await Promise.all(
     snapshot.docs.map((docSnap) => mapTweetSnapshot(docSnap, currentUserId))
@@ -149,94 +184,87 @@ export const getTweetsPaginated = async ({
 };
 
 /* ────────────────────────────────
- * 🔁 Subscripción en tiempo real (general o por usuario)
+ * 🔁 Subscripciones en tiempo real
  * ──────────────────────────────── */
-const subscribeToQuery = ({ tweetsQuery, currentUserId, onUpdate }) =>
-  onSnapshot(tweetsQuery, async (snapshot) => {
+const subscribeToQuery = ({ q, currentUserId, onUpdate }) =>
+  onSnapshot(q, async (snapshot) => {
     try {
       const tweets = await Promise.all(
         snapshot.docs.map((docSnap) => mapTweetSnapshot(docSnap, currentUserId))
       );
       onUpdate(tweets);
     } catch (error) {
-      console.error('Error procesando tweets en tiempo real:', error);
+      console.error('❌ Error procesando tweets en tiempo real:', error);
     }
   });
 
 export const subscribeToTweets = ({ currentUserId, onUpdate }) => {
-  const tweetsQuery = query(tweetsCollection, orderBy('createdAt', 'desc'));
-  return subscribeToQuery({ tweetsQuery, currentUserId, onUpdate });
+  const q = query(tweetsCollection, orderBy('createdAt', 'desc'));
+  return subscribeToQuery({ q, currentUserId, onUpdate });
 };
 
 export const subscribeToTweetsByUser = ({ username, currentUserId, onUpdate }) => {
-  const tweetsQuery = query(
+  const q = query(
     tweetsCollection,
     where('username', '==', username),
     orderBy('createdAt', 'desc')
   );
-  return subscribeToQuery({ tweetsQuery, currentUserId, onUpdate });
+  return subscribeToQuery({ q, currentUserId, onUpdate });
 };
 
 /* ────────────────────────────────
- * ❤️ / 🔁 Like y Retweet (transaccional)
+ * ❤️ / 🔁 Like y Retweet (con fix de transacciones)
  * ──────────────────────────────── */
 const toggleAction = async (tweetId, uid, subcollection, counterField) => {
+  if (!tweetId || !uid) return;
+
   const tweetRef = doc(db, 'tweets', tweetId);
   const actionRef = doc(collection(tweetRef, subcollection), uid);
 
-  await runTransaction(db, async (transaction) => {
-    const tweetSnap = await transaction.get(tweetRef);
+  await runTransaction(db, async (t) => {
+    // 🔹 Lee primero todo lo necesario
+    const [tweetSnap, actionSnap] = await Promise.all([
+      t.get(tweetRef),
+      t.get(actionRef),
+    ]);
+
     if (!tweetSnap.exists()) throw new Error('Tweet no encontrado');
 
-    const currentCount = tweetSnap.data()?.[counterField] || 0;
-    const actionSnap = await transaction.get(actionRef);
+    const count = tweetSnap.data()?.[counterField] || 0;
+    let newCount = count;
 
+    // 🔹 Aplica los cambios
     if (actionSnap.exists()) {
-      transaction.delete(actionRef);
-      transaction.update(tweetRef, { [counterField]: Math.max(currentCount - 1, 0) });
+      t.delete(actionRef);
+      newCount = Math.max(count - 1, 0);
     } else {
-      transaction.set(actionRef, { uid, createdAt: serverTimestamp() });
-      transaction.update(tweetRef, { [counterField]: currentCount + 1 });
+      t.set(actionRef, { uid, createdAt: serverTimestamp() });
+      newCount = count + 1;
     }
+
+    // 🔹 Actualiza el contador
+    t.update(tweetRef, { [counterField]: newCount });
   });
 };
 
 export const toggleLike = (tweetId, uid) => toggleAction(tweetId, uid, 'likes', 'likesCount');
-export const toggleRetweet = (tweetId, uid) =>
-  toggleAction(tweetId, uid, 'retweets', 'retweetsCount');
-
-/* ────────────────────────────────
- * 💬 Crear respuesta
- * ──────────────────────────────── */
-export const createReply = async (tweetId, { uid, username, fullname, text }) => {
-  const profile = await getUserProfile(uid);
-  const tweetRef = doc(db, 'tweets', tweetId);
-
-  await addDoc(collection(tweetRef, 'replies'), {
-    uid,
-    username: username || profile.username || 'user',
-    fullname: fullname || profile.fullname || 'Usuario',
-    photoURL: profile.photoURL || null,
-    text,
-    createdAt: serverTimestamp(),
-  });
-
-  await updateDoc(tweetRef, { repliesCount: increment(1) });
-};
+export const toggleRetweet = (tweetId, uid) => toggleAction(tweetId, uid, 'retweets', 'retweetsCount');
 
 /* ────────────────────────────────
  * 📤 Compartir tweet
  * ──────────────────────────────── */
 export const shareTweet = async (tweetId, uid) => {
+  if (!tweetId || !uid) return;
   const tweetRef = doc(db, 'tweets', tweetId);
   await addDoc(collection(tweetRef, 'shares'), { uid, createdAt: serverTimestamp() });
   await updateDoc(tweetRef, { sharesCount: increment(1) });
 };
 
 /* ────────────────────────────────
- * 🔍 Estado de acciones (like/retweet)
+ * 🔍 Estado de like / retweet
  * ──────────────────────────────── */
 export const getTweetActionState = async (tweetId, uid) => {
+  if (!tweetId || !uid) return { liked: false, retweeted: false };
   const tweetRef = doc(db, 'tweets', tweetId);
   const [likeSnap, retweetSnap] = await Promise.all([
     getDoc(doc(collection(tweetRef, 'likes'), uid)),
@@ -246,58 +274,61 @@ export const getTweetActionState = async (tweetId, uid) => {
 };
 
 /* ────────────────────────────────
- * 🔊 Escuchar un tweet y sus respuestas
+ * 🔊 Escuchar tweet y respuestas
  * ──────────────────────────────── */
 export const listenToTweet = (tweetId, callback) => {
   const tweetRef = doc(db, 'tweets', tweetId);
-  return onSnapshot(tweetRef, (snapshot) => {
-    if (!snapshot.exists()) {
-      callback(null);
-      return;
-    }
-    callback({ id: snapshot.id, ...snapshot.data() });
-  });
+  return onSnapshot(tweetRef, (snap) =>
+    callback(snap.exists() ? { id: snap.id, ...snap.data() } : null)
+  );
 };
 
 export const listenToReplies = (tweetId, callback) => {
   const repliesRef = collection(doc(db, 'tweets', tweetId), 'replies');
   const q = query(repliesRef, orderBy('createdAt', 'desc'));
   return onSnapshot(q, (snapshot) => {
-    const replies = snapshot.docs.map((docSnapshot) => ({
-      id: docSnapshot.id,
-      ...docSnapshot.data(),
+    const replies = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
     }));
     callback(replies);
   });
 };
 
 /* ────────────────────────────────
- * 👥 Followers / Following
+ * 👥 Seguidores / Seguidos (corrigido)
  * ──────────────────────────────── */
 export const getFollowers = async (username) => {
-  const q = query(collection(db, 'follows'), where('following', '==', username));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => doc.data().follower);
+  try {
+    const q = query(collection(db, 'follows'), where('following', '==', username));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => doc.data().follower).filter(Boolean);
+  } catch (error) {
+    console.error('❌ Error al obtener seguidores:', error);
+    return [];
+  }
 };
 
 export const getFollowing = async (username) => {
-  const q = query(collection(db, 'follows'), where('follower', '==', username));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => doc.data().following);
+  try {
+    const q = query(collection(db, 'follows'), where('follower', '==', username));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => doc.data().following).filter(Boolean);
+  } catch (error) {
+    console.error('❌ Error al obtener seguidos:', error);
+    return [];
+  }
 };
 
-
 /* ────────────────────────────────
- * 💬 Tweets con respuestas, media o likes
- * (Opcional para pestañas en ProfileScreen)
+ * 📸 Tweets con media / likes / replies
  * ──────────────────────────────── */
-
 export const getRepliesByUser = async (username) => {
   try {
     const tweets = await getTweetsByUser(username);
-    return tweets.filter((tweet) => tweet.replyTo || tweet.isReply);
-  } catch (error) {
-    console.error('Error al obtener replies del usuario:', error);
+    return tweets.filter((t) => t.replyTo || t.isReply);
+  } catch (e) {
+    console.error('Error al obtener replies del usuario:', e);
     return [];
   }
 };
@@ -305,12 +336,12 @@ export const getRepliesByUser = async (username) => {
 export const getMediaTweets = async (username) => {
   try {
     const tweets = await getTweetsByUser(username);
-    return tweets.filter((tweet) => {
-      const media = tweet.media || tweet.mediaUrls || tweet.mediaUrl;
+    return tweets.filter((t) => {
+      const media = t.media || t.mediaUrls || t.mediaUrl;
       return Array.isArray(media) ? media.length > 0 : Boolean(media);
     });
-  } catch (error) {
-    console.error('Error al obtener tweets con media:', error);
+  } catch (e) {
+    console.error('Error al obtener tweets con media:', e);
     return [];
   }
 };
@@ -323,9 +354,7 @@ export const getLikedTweets = async (username) => {
 
     if (snapshot.empty) return [];
 
-    const tweetIds = snapshot.docs
-      .map((likeDoc) => likeDoc.data()?.tweetId)
-      .filter(Boolean);
+    const tweetIds = snapshot.docs.map((likeDoc) => likeDoc.data()?.tweetId).filter(Boolean);
 
     const results = await Promise.all(
       tweetIds.map(async (tweetId) => {

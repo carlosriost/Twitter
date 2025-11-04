@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
-import { getFollowing } from '../Services/userService'; // 🔹 Importa el servicio real
+import { getFollowing } from '../Services/tweetService';
+ // 🔹 Importa el servicio real
 
 export default function FollowingScreen({ route, navigation }) {
   const [following, setFollowing] = useState([]);
@@ -32,15 +33,19 @@ export default function FollowingScreen({ route, navigation }) {
     fetchFollowing();
   }, [username]);
 
-  const renderFollowing = ({ item }) => (
+const renderFollowing = ({ item }) => {
+  if (!item) return null;
+  const display = String(item).trim();
+
+  return (
     <View style={styles.row}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarInitial}>{item[0]?.toUpperCase()}</Text>
+        <Text style={styles.avatarInitial}>{display[0]?.toUpperCase() || 'U'}</Text>
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.name}>{item}</Text>
-        <Text style={styles.username}>@{item}</Text>
+        <Text style={styles.name}>{display}</Text>
+        <Text style={styles.username}>@{display}</Text>
         <Text style={styles.bio}>You follow each other</Text>
       </View>
 
@@ -49,6 +54,8 @@ export default function FollowingScreen({ route, navigation }) {
       </TouchableOpacity>
     </View>
   );
+};
+
 
   if (loading)
     return (

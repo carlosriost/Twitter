@@ -19,12 +19,14 @@ import {
   query,
   where,
   orderBy,
+  getDoc,
 } from 'firebase/firestore';
 import { profileStore } from '../Services/profileStore';
+import { useNavigation } from '@react-navigation/native';
 
 const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
 
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen() {
   const user = auth.currentUser;
   const [userData, setUserData] = useState(profileStore.getProfile());
   const [tweets, setTweets] = useState([]);
@@ -33,14 +35,14 @@ export default function ProfileScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('Posts');
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const navigation = useNavigation();
 
   // 🔹 Escuchar perfil y tweets en tiempo real
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid || !userData?.username) return;
 
     let unsubscribeUser = null;
     let unsubscribeTweets = null;
-
     setLoading(true);
 
     try {
@@ -75,7 +77,7 @@ export default function ProfileScreen({ navigation }) {
       const tweetsRef = collection(db, 'tweets');
       const tweetsQuery = query(
         tweetsRef,
-        where('username', '==', userData?.username || user?.displayName || ''),
+        where('username', '==', userData?.username),
         orderBy('createdAt', 'desc')
       );
 
@@ -98,10 +100,21 @@ export default function ProfileScreen({ navigation }) {
       setError('Error al cargar el perfil.');
     }
 
-    // 🔁 Refrescar cuando vuelve desde EditProfile
-    const unsubscribeFocus = navigation.addListener('focus', () => {
+    // 🔁 Refrescar datos reales al volver desde EditProfile
+    const unsubscribeFocus = navigation.addListener('focus', async () => {
       setRefreshing(true);
-      setTimeout(() => setRefreshing(false), 800);
+      try {
+        const updatedDoc = await getDoc(doc(db, 'users', user.uid));
+        if (updatedDoc.exists()) {
+          const updatedData = updatedDoc.data();
+          setUserData(updatedData);
+          profileStore.setProfile({ uid: user.uid, ...updatedData });
+        }
+      } catch (err) {
+        console.warn('⚠️ Error refrescando perfil:', err);
+      } finally {
+        setTimeout(() => setRefreshing(false), 600);
+      }
     });
 
     return () => {
@@ -270,7 +283,7 @@ const styles = StyleSheet.create({
   backArrow: { fontSize: 28, color: colors.text },
   topBarName: { fontSize: typography.subtitle, fontWeight: '700', color: colors.text },
   topBarCount: { color: colors.textLight, fontSize: typography.caption },
-  banner: { height: 150, backgroundColor: colors.surface },
+  banner: { height: 150, backgroundColor: colors.primary + '33' }, // 🌈 visual mejorado
   profileCard: {
     paddingHorizontal: spacing.md,
     marginTop: -36,
@@ -291,10 +304,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
   },
-  refreshText: {
-    color: colors.textLight,
-    fontSize: typography.caption,
-  },
+  refreshText: { color: colors.textLight, fontSize: typography.caption },
   editButton: {
     alignSelf: 'flex-end',
     borderWidth: 1,
@@ -318,12 +328,7 @@ const styles = StyleSheet.create({
   tabItem: { alignItems: 'center' },
   tabLabel: { color: colors.textLight, fontSize: typography.subtitle },
   tabLabelActive: { color: colors.text, fontWeight: '700' },
-  tabIndicator: {
-    height: 3,
-    backgroundColor: colors.primary,
-    marginTop: 4,
-    width: '100%',
-  },
+  tabIndicator: { height: 3, backgroundColor: colors.primary, marginTop: 4, width: '100%' },
   tweetRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.md,

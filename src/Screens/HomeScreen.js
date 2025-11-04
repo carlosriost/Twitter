@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
 import { auth } from '../Config/firebaseConfig';
-import { listenToTweets, toggleLike, toggleRetweet } from '../Services/tweetService';
+import { subscribeToTweets, toggleLike, toggleRetweet } from '../Services/tweetService';
 import { profileStore } from '../Services/profileStore';
 
 /* ────────────────────────────────
@@ -55,18 +55,23 @@ export default function HomeScreen({ navigation, route }) {
   }, []);
 
   /* ────────────────────────────────
-   * 🕒 Escuchar tweets en tiempo real
-   * ──────────────────────────────── */
-  useEffect(() => {
-    setLoading(true);
-    const unsubscribe = listenToTweets((data) => {
+ * 🕒 Escuchar tweets en tiempo real
+ * ──────────────────────────────── */
+useEffect(() => {
+  setLoading(true);
+  const unsubscribe = subscribeToTweets({
+    currentUserId,
+    onUpdate: (data) => {
       setTweets(data);
       setLoading(false);
-    });
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
+    },
+  });
+
+  return () => {
+    if (unsubscribe) unsubscribe();
+  };
+}, [currentUserId]);
+
 
   /* ────────────────────────────────
    * 🔒 Validar autenticación antes de acciones
