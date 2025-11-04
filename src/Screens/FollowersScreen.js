@@ -47,7 +47,7 @@ export default function FollowersScreen({ route, navigation }) {
         <Text style={styles.username}>@{display}</Text>
         <View style={styles.badgeRow}>
           <View style={styles.badgePill}>
-            <Text style={styles.badgeText}>Follows you</Text>
+            <Text style={styles.badgeText}>Follows youu</Text>
           </View>
         </View>
       </View>
