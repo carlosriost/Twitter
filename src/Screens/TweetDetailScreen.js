@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StyleSheet, StatusBar, ActivityIndicator, View, Text } from 'react-native';
-import { colors, typography } from '../Styles/theme';
+import { SafeAreaView, StatusBar, ActivityIndicator, View, Text } from 'react-native';
+import { colors } from '../Styles/theme';
+import styles from '../Styles/TweetDetailScreen.styles';
 import TweetCard from '../Components/TweetCard';
 import { getTweetById } from '../Services/tweetService';
 
@@ -55,19 +56,3 @@ export default function TweetDetailScreen({ route }) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: colors.textLight,
-    fontSize: typography.subtitle,
-  },
-});

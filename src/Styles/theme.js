@@ -1,39 +1,53 @@
-export const colors = { 
-  primary: '#1DA1F2',     // azul principal de Twitter
-  primaryDark: '#1A8CD8', // azul oscuro
-  primaryLight: '#8ECDF7', // azul claro para acentos
-  background: '#FFFFFF',  // fondo blanco
-  surface: '#F7F9F9',     // fondo gris claro
-  elevated: '#FFFFFF',    // para tarjetas o modales
-  text: '#0F1419',        // texto principal
-  textLight: '#536471',   // texto secundario
-  muted: '#536471',       // para iconos o descripciones
-  border: '#EFF3F4',      // bordes suaves
-  accent: '#8ECDF7',      // acento azul claro
-  danger: '#F4212E',      // rojo de alerta
-};
+// src/Styles/theme.js
 
+// Paleta clara con acento verde (friendly para una red social)
+export const colors = {
+  // Acentos
+  primary: '#16A34A',     // emerald-600
+  primaryDark: '#15803D', // emerald-700
+
+  // Superficies claras
+  background: '#FFFFFF',
+  surface: '#F8FAFC',     // slate-50
+
+  // Texto
+  text: '#111827',        // gray-900
+  textLight: '#6B7280',   // gray-500
+
+  // Bordes y estados
+  border: '#E5E7EB',      // gray-200
+  danger: '#EF4444',      // red-500
+  warning: '#F59E0B',     // amber-500
+  success: '#10B981',     // emerald-500
+
+  // Contrastes útiles
+  onPrimary: '#FFFFFF',   // texto sobre botón verde
+  onBackground: '#111827' // texto principal sobre fondo claro
+};
 
 export const spacing = {
   xs: 4,
   sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
 };
 
 export const radii = {
+  sm: 6,
+  md: 10,
+  lg: 14,
   pill: 999,
-  sm: 8,
-  md: 12,
-  lg: 18,
 };
 
 export const typography = {
-  title: 22,
-  subtitle: 18,
-  body: 16,
-  caption: 14,
-  label: 12,
+  caption: 12,
+  body: 14,
+  subtitle: 16,
+  title: 18,
+  heading: 22,
 };
 
+const theme = { colors, spacing, radii, typography };
+export default theme;

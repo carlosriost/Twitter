@@ -5,13 +5,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   StatusBar,
   ScrollView,
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { colors, spacing, radii, typography } from '../Styles/theme';
+import { colors } from '../Styles/theme';
+import styles from '../Styles/RegisterScreen.styles';
 import { auth } from '../Config/firebaseConfig';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { createUserProfile } from '../Services/userService';
@@ -69,11 +69,12 @@ export default function RegisterScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoRow}>
-          <Text style={styles.logo}>𝕏</Text>
+          <Text style={styles.logo}>∃ꊼ∃ꊼ</Text>
         </View>
 
-        <Text style={styles.title}>Create your account</Text>
-
+        <Text style={styles.title}>
+        Create your <Text style={styles.brand}>∃ꊼ∃ꊼ</Text> account
+        </Text>
         <View style={styles.formCard}>
           <TextInput
             style={styles.input}
@@ -81,6 +82,7 @@ export default function RegisterScreen({ navigation }) {
             placeholderTextColor={colors.textLight}
             value={fullname}
             onChangeText={setFullname}
+            returnKeyType="next"
           />
 
           <TextInput
@@ -90,6 +92,7 @@ export default function RegisterScreen({ navigation }) {
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
+            returnKeyType="next"
           />
 
           <TextInput
@@ -100,6 +103,7 @@ export default function RegisterScreen({ navigation }) {
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            returnKeyType="next"
           />
 
           <TextInput
@@ -109,6 +113,8 @@ export default function RegisterScreen({ navigation }) {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            returnKeyType="done"
+            onSubmitEditing={handleRegister}
           />
 
           <TouchableOpacity
@@ -120,7 +126,7 @@ export default function RegisterScreen({ navigation }) {
             disabled={!fullname || !username || !email || !password || loading}
           >
             {loading ? (
-              <ActivityIndicator color={colors.background} />
+              <ActivityIndicator color={colors.onPrimary} />
             ) : (
               <Text style={styles.primaryButtonText}>Next</Text>
             )}
@@ -137,52 +143,3 @@ export default function RegisterScreen({ navigation }) {
     </SafeAreaView>
   );
 }
-
-// 🎨 Mantiene tus estilos originales
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
-  logoRow: { alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.lg },
-  logo: { fontSize: 46, fontWeight: '900', color: colors.text },
-  title: {
-    fontSize: typography.title + 2,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: spacing.xl,
-  },
-  formCard: {
-    backgroundColor: colors.elevated,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.md,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + spacing.xs,
-    fontSize: typography.body,
-    color: colors.text,
-  },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.pill,
-    paddingVertical: spacing.sm + spacing.xs,
-    alignItems: 'center',
-  },
-  primaryButtonText: { color: colors.background, fontSize: typography.subtitle, fontWeight: '700' },
-  primaryButtonDisabled: { backgroundColor: colors.accent },
-  footerPrompt: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.lg,
-  },
-  footerText: { color: colors.textLight, fontSize: typography.caption },
-  footerLink: { color: colors.primary, fontSize: typography.caption, fontWeight: '700' },
-});
