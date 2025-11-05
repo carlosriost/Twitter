@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { colors } from '../Styles/theme';
 import styles from '../Styles/UserTweetsScreen.styles';
-import { auth } from '../Config/firebaseConfig';
+import { auth, db } from '../Config/firebaseConfig';
 import { subscribeToTweetsByUser } from '../Services/tweetService';
 import { toggleLike, toggleRetweet } from '../Services/engagementService';
+import { profileStore } from '../Services/profileStore';
+import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import Tap from '../Components/Tap';
 
 const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
@@ -23,23 +25,85 @@ export default function UserTweetsScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(auth.currentUser?.uid ?? null);
 
-  const username = route.params?.username || 'user';
-  const fullname = route.params?.fullname || 'Usuario';
+  // Perfil propio (store)
+  const [profile, setProfile] = useState(profileStore.getProfile());
 
-  //Mantener autenticación actualizada
+  // Perfil que se está viendo (si es otro usuario)
+  const [viewedProfile, setViewedProfile] = useState(null);
+
+  const usernameParam = route.params?.username || null;
+  const fullnameParam = route.params?.fullname || null;
+
+  // Username que se está mostrando en la pantalla
+  const screenUsername =
+    usernameParam ||
+    profile?.username ||
+    auth.currentUser?.displayName ||
+    'user';
+
+  // ¿Es mi propio perfil?
+  const isOwnProfile = !usernameParam || profile?.username === usernameParam;
+
+  // Nombre a mostrar en header y tarjeta
+  const displayName =
+    fullnameParam ||
+    (isOwnProfile ? (profile?.fullname || profile?.username) : (viewedProfile?.fullname || screenUsername)) ||
+    screenUsername;
+
+  // Bio a mostrar en la tarjeta
+  const bioText = isOwnProfile ? profile?.bio : viewedProfile?.bio;
+
+  // Mantener autenticación actualizada y perfil global
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       setCurrentUserId(user?.uid ?? null);
     });
-    return () => unsubscribeAuth();
+    const unsubscribeProfile = profileStore.subscribe(setProfile);
+    return () => {
+      unsubscribeAuth();
+      unsubscribeProfile();
+    };
   }, []);
 
-  //tweets en tiempo real
+  // Si es perfil ajeno, traer su perfil (fullname/bio) por username
+  useEffect(() => {
+    let cancelled = false;
+    const fetchViewedProfile = async () => {
+      if (isOwnProfile || !screenUsername) {
+        setViewedProfile(null);
+        return;
+      }
+      try {
+        const q = query(
+          collection(db, 'users'),
+          where('username', '==', screenUsername),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+        if (!cancelled) {
+          if (!snap.empty) {
+            setViewedProfile(snap.docs[0].data());
+          } else {
+            setViewedProfile(null);
+          }
+        }
+      } catch (e) {
+        console.warn('Error cargando perfil de usuario:', e);
+        if (!cancelled) setViewedProfile(null);
+      }
+    };
+    fetchViewedProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwnProfile, screenUsername]);
+
+  // Escuchar tweets en tiempo real
   useEffect(() => {
     let unsubscribe;
     try {
       unsubscribe = subscribeToTweetsByUser({
-        username,
+        username: screenUsername,
         currentUserId,
         onUpdate: (data) => setTweets(data),
       });
@@ -53,9 +117,9 @@ export default function UserTweetsScreen({ route, navigation }) {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [username, currentUserId]);
+  }, [screenUsername, currentUserId]);
 
-  //Validar autenticación antes de interactuar
+  // Validar autenticación antes de interactuar
   const ensureAuthenticated = useCallback(() => {
     if (!currentUserId) {
       Alert.alert('Autenticación requerida', 'Inicia sesión para interactuar con los tweets.');
@@ -64,7 +128,7 @@ export default function UserTweetsScreen({ route, navigation }) {
     return true;
   }, [currentUserId]);
 
-  //Like
+  // Like
   const handleToggleLike = useCallback(
     async (tweetId) => {
       if (!ensureAuthenticated()) return;
@@ -77,7 +141,7 @@ export default function UserTweetsScreen({ route, navigation }) {
     [currentUserId, ensureAuthenticated]
   );
 
-  //Retweet
+  // Retweet
   const handleToggleRetweet = useCallback(
     async (tweetId) => {
       if (!ensureAuthenticated()) return;
@@ -90,20 +154,20 @@ export default function UserTweetsScreen({ route, navigation }) {
     [currentUserId, ensureAuthenticated]
   );
 
-  //Render de cada tweet
+  // Render de cada tweet
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
-      {/*Avatar*/}
+      {/* Avatar */}
       <View style={styles.avatar}>
         <Text style={styles.avatarInitial}>
           {(item.fullname?.[0] || item.username?.[0] || 'U').toUpperCase()}
         </Text>
       </View>
 
-      {/*Contenido del tweet*/}
+      {/* Contenido del tweet */}
       <View style={styles.tweetBody}>
         <View style={styles.tweetHeader}>
-          <Text style={styles.tweetName}>{item.fullname}</Text>
+          <Text style={styles.tweetName}>{item.fullname || item.username}</Text>
           <Text style={styles.tweetMeta}>@{item.username}</Text>
           <Text style={styles.moreIcon}>⋯</Text>
         </View>
@@ -112,7 +176,7 @@ export default function UserTweetsScreen({ route, navigation }) {
           <Text style={styles.tweetContent}>{item.text || item.content}</Text>
         )}
 
-        {/*Mostrar imágenes adjuntas*/}
+        {/* Mostrar imágenes adjuntas */}
         {Array.isArray(item.media) && item.media.length > 0 && (
           <View
             style={[
@@ -135,7 +199,7 @@ export default function UserTweetsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/*Acciones*/}
+        {/* Acciones */}
         <View style={styles.tweetActions}>
           <ActionStat icon="💬" value={item.repliesCount} />
           <ActionStat
@@ -182,38 +246,46 @@ export default function UserTweetsScreen({ route, navigation }) {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
-            {/*Header superior*/}
+            {/* Header superior */}
             <View style={styles.topBar}>
               <Tap onPress={() => navigation.goBack()}>
                 <Text style={styles.backArrow}>‹</Text>
               </Tap>
               <View>
-                <Text style={styles.topBarName}>{fullname}</Text>
+                <Text style={styles.topBarName}>{displayName}</Text>
                 <Text style={styles.topBarCount}>{tweets.length} posts</Text>
               </View>
             </View>
 
-            {/*Banner*/}
+            {/* Banner */}
             <View style={styles.banner} />
 
-            {/*Perfil*/}
+            {/* Perfil */}
             <View style={styles.profileCard}>
               <View style={styles.profileAvatar}>
                 <Text style={styles.profileAvatarInitial}>
-                  {fullname[0]?.toUpperCase() || 'U'}
+                  {(displayName?.[0] || screenUsername?.[0] || 'U').toUpperCase()}
                 </Text>
               </View>
 
-              <Tap style={styles.editButton}>
-                <Text style={styles.editButtonText}>Edit profile</Text>
-              </Tap>
+              {isOwnProfile && (
+                <Tap
+                  style={styles.editButton}
+                  onPress={() => navigation.navigate('EditProfile')}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.editButtonText}>Edit profile</Text>
+                </Tap>
+              )}
 
-              <Text style={styles.profileName}>{fullname}</Text>
-              <Text style={styles.profileUsername}>@{username}</Text>
+              <Text style={styles.profileName}>{displayName}</Text>
+              <Text style={styles.profileUsername}>@{screenUsername}</Text>
 
-              <Text style={styles.profileBio}>
-                Product designer · Pixel perfectionist · Rebuilding X in React Native 💙
-              </Text>
+              {bioText ? (
+                <Text style={styles.profileBio}>{bioText}</Text>
+              ) : (
+                <Text style={styles.profileMeta}>No bio yet</Text>
+              )}
 
               <View style={styles.profileMetaRow}>
                 <Text style={styles.profileMeta}>📍 Medellín, Colombia</Text>
@@ -231,7 +303,7 @@ export default function UserTweetsScreen({ route, navigation }) {
               </View>
             </View>
 
-            {/*Tabs*/}
+            {/* Tabs */}
             <View style={styles.tabRow}>
               {profileTabs.map((tab, index) => (
                 <View
@@ -257,7 +329,7 @@ export default function UserTweetsScreen({ route, navigation }) {
   );
 }
 
-/*Componente ActionStat*/
+/* Componente ActionStat */
 function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   const content = (
     <>

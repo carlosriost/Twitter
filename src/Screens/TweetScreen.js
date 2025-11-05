@@ -17,6 +17,7 @@ import {
   listenToTweet,
   listenToReplies,
 } from '../Services/tweetService';
+import { profileStore } from '../Services/profileStore';
 import Tap from '../Components/Tap';
 
 export default function TweetScreen({ navigation, route }) {
@@ -25,17 +26,31 @@ export default function TweetScreen({ navigation, route }) {
   const [currentTweet, setCurrentTweet] = useState(route.params?.tweet || null);
   const [replies, setReplies] = useState([]);
 
-  // Usuario autenticado
-  const currentUser = auth.currentUser;
-  const uid = currentUser?.uid || null;
-  const username = currentUser?.displayName || route.params?.username || 'user';
-  const fullname = route.params?.fullname || username || 'Usuario';
+  // Perfil del usuario logueado
+  const [profile, setProfile] = useState(profileStore.getProfile());
+  useEffect(() => {
+    const unsubscribe = profileStore.subscribe(setProfile);
+    return () => unsubscribe();
+  }, []);
+
+  // Identidad mostrada en el composer (prioriza profileStore)
+  const username =
+    profile?.username ||
+    auth.currentUser?.displayName ||
+    route.params?.username ||
+    'user';
+
+  const fullname =
+    profile?.fullname ||
+    route.params?.fullname ||
+    username ||
+    'Usuario';
 
   // Modo respuesta
   const isReplyMode = route.params?.mode === 'reply' && route.params?.tweetId;
   const tweetId = route.params?.tweetId;
 
-  // tweet y respuestas
+  // Escuchar tweet y respuestas cuando es reply
   useEffect(() => {
     if (!isReplyMode || !tweetId) return;
 
@@ -51,6 +66,7 @@ export default function TweetScreen({ navigation, route }) {
   // Publicar tweet o respuesta
   const handlePost = async () => {
     if (!tweet.trim()) return;
+    const uid = auth.currentUser?.uid || null;
     if (!uid) {
       alert('Debes iniciar sesión para publicar un tweet.');
       return;
@@ -83,36 +99,36 @@ export default function TweetScreen({ navigation, route }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/*Header*/}
+      {/* Header */}
       <View style={styles.topBar}>
         <Tap onPress={() => navigation.goBack()}>
           <Text style={styles.cancelText}>Cancel</Text>
         </Tap>
 
-      <Tap
-        style={[
-        styles.postButton,
-        !tweet.trim() && styles.postButtonDisabled, // solo gris si está vacío
-        ]}
-        onPress={handlePost}
-        disabled={loading || !tweet.trim()} // deshabilitado para evitar doble envío, pero sin cambiar color
-        accessibilityRole="button"
+        <Tap
+          style={[
+            styles.postButton,
+            !tweet.trim() && styles.postButtonDisabled, // solo “apagado” si está vacío
+          ]}
+          onPress={handlePost}
+          disabled={loading || !tweet.trim()} // deshabilita para evitar doble envío
+          accessibilityRole="button"
         >
-        {loading ? (
-        <ActivityIndicator size="small" color={colors.onPrimary} />
-        ) : (
-        <Text style={styles.postButtonText}>
-        {isReplyMode ? 'Reply' : 'Post'}
-        </Text>
-        )}
-      </Tap>
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.onPrimary} />
+          ) : (
+            <Text style={styles.postButtonText}>
+              {isReplyMode ? 'Reply' : 'Post'}
+            </Text>
+          )}
+        </Tap>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/*Si está en modo respuesta, muestra el tweet original*/}
+        {/* Tweet original si estás respondiendo */}
         {isReplyMode && currentTweet && (
           <View style={styles.threadCard}>
             <View style={styles.threadHeader}>
@@ -138,20 +154,18 @@ export default function TweetScreen({ navigation, route }) {
           </View>
         )}
 
-        {/*Área para escribir tweet o respuesta*/}
+        {/* Composer */}
         <View style={styles.container}>
           <View style={styles.avatar}>
             <Text style={styles.avatarInitial}>
-              {fullname[0]?.toUpperCase() || 'U'}
+              {fullname?.[0]?.toUpperCase() || username?.[0]?.toUpperCase() || 'U'}
             </Text>
           </View>
 
           <View style={styles.composerBody}>
             <TextInput
               style={styles.input}
-              placeholder={
-                isReplyMode ? 'Tweet your reply' : 'What is happening?!'
-              }
+              placeholder={isReplyMode ? 'Tweet your reply' : 'What is happening?!'}
               placeholderTextColor={colors.textLight}
               multiline
               maxLength={280}
@@ -159,7 +173,7 @@ export default function TweetScreen({ navigation, route }) {
               onChangeText={setTweet}
             />
 
-            {/*Barra inferior*/}
+            {/* Toolbar */}
             <View style={styles.toolbar}>
               <View style={styles.iconRow}>
                 {['🖼️', '📍', '😊'].map((icon) => (
@@ -180,7 +194,7 @@ export default function TweetScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* 🔹 Respuestas */}
+        {/* Respuestas */}
         {isReplyMode && (
           <View style={styles.repliesSection}>
             <Text style={styles.repliesTitle}>Replies</Text>
@@ -216,5 +230,3 @@ export default function TweetScreen({ navigation, route }) {
     </SafeAreaView>
   );
 }
-
-

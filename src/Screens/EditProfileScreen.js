@@ -4,21 +4,24 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   Image,
   StatusBar,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { colors } from '../Styles/theme';
 import styles from '../Styles/EditProfileScreen.styles';
 import { auth, db, storage } from '../Config/firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { profileStore } from '../Services/profileStore'; // ✅ importante
+import { profileStore } from '../Services/profileStore';
+import Tap from '../Components/Tap';
 
 export default function EditProfileScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const user = auth.currentUser;
   const [fullname, setFullname] = useState('');
   const [bio, setBio] = useState('');
@@ -26,7 +29,7 @@ export default function EditProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  //Cargar datos actuales del usuario
+  // Cargar datos actuales del usuario
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -37,7 +40,9 @@ export default function EditProfileScreen({ navigation }) {
           setFullname(data.fullname || '');
           setBio(data.bio || '');
           setPhotoURL(data.photoURL || null);
-          profileStore.setProfile({ uid: user.uid, ...data }); // 🧩 sincroniza estado global
+          // Mantén el store sincronizado sin perder campos previos
+          const current = profileStore.getProfile() || {};
+          profileStore.setProfile({ ...current, uid: user.uid, ...data });
         }
       } catch (error) {
         console.error('Error al cargar el perfil:', error);
@@ -47,12 +52,11 @@ export default function EditProfileScreen({ navigation }) {
       }
     };
     loadUserData();
-  }, []);
+  }, [user?.uid]);
 
-  //Escoger nueva foto de perfil
+  // Escoger nueva foto
   const handlePickImage = async () => {
     const options = { mediaType: 'photo', quality: 0.8, includeBase64: false };
-
     launchImageLibrary(options, (response) => {
       if (response.didCancel) return;
       if (response.errorCode) {
@@ -65,7 +69,7 @@ export default function EditProfileScreen({ navigation }) {
     });
   };
 
-  //Guardar cambios
+  // Guardar cambios
   const handleSave = async () => {
     if (!fullname.trim()) {
       Alert.alert('Campo obligatorio', 'El nombre no puede estar vacío.');
@@ -76,7 +80,7 @@ export default function EditProfileScreen({ navigation }) {
     try {
       let newPhotoURL = photoURL;
 
-      // Subir imagen si es nueva (no URL remota)
+      // Subir imagen si es nueva
       if (photoURL && !photoURL.startsWith('https://')) {
         const response = await fetch(photoURL);
         const blob = await response.blob();
@@ -85,7 +89,7 @@ export default function EditProfileScreen({ navigation }) {
         newPhotoURL = await getDownloadURL(storageRef);
       }
 
-      //Actualizar Firestore
+      // Actualizar Firestore
       const userRef = doc(db, 'users', user.uid);
       const updates = {
         fullname: fullname.trim(),
@@ -95,8 +99,9 @@ export default function EditProfileScreen({ navigation }) {
       };
       await updateDoc(userRef, updates);
 
-      // Actualizar estado local + global
-      const refreshed = { uid: user.uid, ...updates };
+      // Actualizar estado local + global (MEZCLA para no perder username u otros campos)
+      const current = profileStore.getProfile() || {};
+      const refreshed = { ...current, uid: user.uid, ...updates };
       profileStore.setProfile(refreshed);
       setFullname(refreshed.fullname);
       setBio(refreshed.bio);
@@ -124,28 +129,32 @@ export default function EditProfileScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/*Header*/}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+      {/* Header arriba con Cancel y Save */}
+      <View style={[styles.header, { paddingTop: Math.max(16, insets.top) }]}>
+        <Tap onPress={() => navigation.goBack()}>
           <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
+        </Tap>
 
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+        <Tap
+          style={styles.saveButton}
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
         >
           {saving ? (
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.saveText}>Save</Text>
           )}
-        </TouchableOpacity>
+        </Tap>
       </View>
 
-      {/*Contenido principal*/}
-      <View style={styles.container}>
-        <TouchableOpacity onPress={handlePickImage}>
+      {/* Contenido */}
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 24 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Tap onPress={handlePickImage} style={{ alignSelf: 'center' }}>
           <Image
             source={
               photoURL ? { uri: photoURL } : require('../assets/default-avatar.png')
@@ -153,7 +162,7 @@ export default function EditProfileScreen({ navigation }) {
             style={styles.avatar}
           />
           <Text style={styles.changePhoto}>Change photo</Text>
-        </TouchableOpacity>
+        </Tap>
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Name</Text>
@@ -177,7 +186,7 @@ export default function EditProfileScreen({ navigation }) {
             multiline
           />
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

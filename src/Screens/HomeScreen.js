@@ -18,7 +18,7 @@ import { auth } from '../Config/firebaseConfig';
 import { subscribeToTweets, toggleLike, toggleRetweet } from '../Services/tweetService';
 import { profileStore } from '../Services/profileStore';
 
-/*Íconos inferiores*/
+/* Íconos inferiores */
 const bottomNavItems = [
   { id: 'home', label: 'Home', icon: '🏠', route: 'Home' },
   { id: 'search', label: 'Search', icon: '🔍', route: 'Home' },
@@ -31,13 +31,24 @@ const composerIcons = ['🖼️', '🎞️', '📊', '😊'];
 
 export default function HomeScreen({ navigation, route }) {
   const [profile, setProfile] = useState(profileStore.getProfile());
-  const username = profile?.username || route.params?.username || 'user';
   const [activeTab, setActiveTab] = useState('forYou');
   const [tweets, setTweets] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(auth.currentUser?.uid ?? null);
   const [loading, setLoading] = useState(true);
 
-  /*Mantener sesión y perfil global actualizados*/
+  // Derivar usuario/nombre visibles
+  const userUsername =
+    profile?.username ||
+    route.params?.username ||
+    auth.currentUser?.displayName ||
+    'user';
+
+  const displayName =
+    profile?.fullname ||
+    route.params?.fullname ||
+    userUsername;
+
+  /* Mantener sesión y perfil global actualizados */
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       setCurrentUserId(user?.uid ?? null);
@@ -49,7 +60,7 @@ export default function HomeScreen({ navigation, route }) {
     };
   }, []);
 
-  /*tweets en tiempo real*/
+  /* Tweets en tiempo real */
   useEffect(() => {
     setLoading(true);
     const unsubscribe = subscribeToTweets({
@@ -65,7 +76,7 @@ export default function HomeScreen({ navigation, route }) {
     };
   }, [currentUserId]);
 
-  /*Validar autenticación antes de acciones*/
+  /* Validar autenticación antes de acciones */
   const ensureAuthenticated = useCallback(() => {
     if (!currentUserId) {
       Alert.alert('Autenticación requerida', 'Inicia sesión para interactuar con los tweets.');
@@ -74,7 +85,7 @@ export default function HomeScreen({ navigation, route }) {
     return true;
   }, [currentUserId]);
 
-  /*Like */
+  /* Like */
   const handleToggleLike = useCallback(
     async (tweetId) => {
       if (!ensureAuthenticated()) return;
@@ -87,7 +98,7 @@ export default function HomeScreen({ navigation, route }) {
     [currentUserId, ensureAuthenticated]
   );
 
-  /*Retweet */
+  /* Retweet */
   const handleToggleRetweet = useCallback(
     async (tweetId) => {
       if (!ensureAuthenticated()) return;
@@ -100,20 +111,20 @@ export default function HomeScreen({ navigation, route }) {
     [currentUserId, ensureAuthenticated]
   );
 
-  /*Accesos rápidos*/
+  /* Accesos rápidos: pasar username/fullname cuando aplica */
   const quickActions = useMemo(
     () => [
       { id: 'tweet', label: 'Compose', onPress: () => navigation.navigate('Tweet') },
-      { id: 'followers', label: 'Followers', onPress: () => navigation.navigate('Followers') },
-      { id: 'following', label: 'Following', onPress: () => navigation.navigate('Following') },
-      { id: 'userTweets', label: 'Profile', onPress: () => navigation.navigate('UserTweets') },
+      { id: 'followers', label: 'Followers', onPress: () => navigation.navigate('Followers', { username: userUsername }) },
+      { id: 'following', label: 'Following', onPress: () => navigation.navigate('Following', { username: userUsername }) },
+      { id: 'userTweets', label: 'Profile', onPress: () => navigation.navigate('UserTweets', { username: userUsername, fullname: displayName }) },
     ],
-    [navigation]
+    [navigation, userUsername, displayName]
   );
 
   const listPaddingBottom = 56 + 24;
 
-  /*Render de cada tweet */
+  /* Render de cada tweet */
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
       <View style={styles.avatar}>
@@ -129,7 +140,7 @@ export default function HomeScreen({ navigation, route }) {
       <View style={styles.tweetBody}>
         <View style={styles.tweetHeader}>
           <View style={styles.headerText}>
-            <Text style={styles.tweetName}>{item.fullname || 'Usuario'}</Text>
+            <Text style={styles.tweetName}>{item.fullname || item.username || 'User'}</Text>
             <Text style={styles.tweetMeta}>@{item.username || 'user'}</Text>
           </View>
         </View>
@@ -138,7 +149,7 @@ export default function HomeScreen({ navigation, route }) {
           <Text style={styles.tweetContent}>{item.text || item.content}</Text>
         )}
 
-        {/*Soporte de imágenes */}
+        {/* Soporte de imágenes */}
         {Array.isArray(item.media) && item.media.length > 0 && (
           <View
             style={[
@@ -161,7 +172,7 @@ export default function HomeScreen({ navigation, route }) {
           </View>
         )}
 
-        {/*Acciones */}
+        {/* Acciones */}
         <View style={styles.tweetActions}>
           <ActionStat icon="💬" value={item.repliesCount} />
           <ActionStat
@@ -182,7 +193,7 @@ export default function HomeScreen({ navigation, route }) {
     </View>
   );
 
-  /*Pantalla */
+  /* Pantalla */
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
@@ -198,14 +209,14 @@ export default function HomeScreen({ navigation, route }) {
           contentContainerStyle={[styles.listContent, { paddingBottom: listPaddingBottom }]}
           ListHeaderComponent={
             <>
-              {/*Barra superior */}
+              {/* Barra superior */}
               <View style={styles.topBar}>
                 <Tap style={styles.profileButton} onPress={() => navigation.navigate('Profile')}>
                   {profile?.photoURL ? (
                     <Image source={{ uri: profile.photoURL }} style={styles.avatarImage} />
                   ) : (
                     <Text style={styles.profileInitial}>
-                      {username[0]?.toUpperCase()}
+                      {(displayName?.[0] || userUsername?.[0] || 'U').toUpperCase()}
                     </Text>
                   )}
                 </Tap>
@@ -213,7 +224,7 @@ export default function HomeScreen({ navigation, route }) {
                 <Text style={styles.sparkle}>✨</Text>
               </View>
 
-              {/*Tabs */}
+              {/* Tabs */}
               <View style={styles.tabs}>
                 {['forYou', 'following'].map((tab) => (
                   <Tap
@@ -234,14 +245,14 @@ export default function HomeScreen({ navigation, route }) {
                 ))}
               </View>
 
-              {/*Composer*/}
+              {/* Composer */}
               <View style={styles.composer}>
                 <View style={styles.avatarSmall}>
                   {profile?.photoURL ? (
                     <Image source={{ uri: profile.photoURL }} style={styles.avatarImage} />
                   ) : (
                     <Text style={styles.avatarInitial}>
-                      {username[0]?.toUpperCase()}
+                      {(displayName?.[0] || userUsername?.[0] || 'U').toUpperCase()}
                     </Text>
                   )}
                 </View>
@@ -273,7 +284,7 @@ export default function HomeScreen({ navigation, route }) {
                 </View>
               </View>
 
-              {/*Quick Actions*/}
+              {/* Quick Actions */}
               <View style={styles.quickActions}>
                 {quickActions.map((action) => (
                   <Tap key={action.id} style={styles.actionChip} onPress={action.onPress}>
@@ -288,7 +299,7 @@ export default function HomeScreen({ navigation, route }) {
         />
       )}
 
-      {/*Bottom Navigation*/}
+      {/* Bottom Navigation */}
       <View style={[styles.bottomBar, { marginBottom: 16 }]}>
         {bottomNavItems.map((item) => (
           <Tap key={item.id} style={styles.bottomItem} onPress={() => navigation.navigate(item.route)}>
@@ -298,19 +309,19 @@ export default function HomeScreen({ navigation, route }) {
         ))}
       </View>
 
-      {/*FAB compose*/}
+      {/* FAB compose */}
       <Portal>
         <FAB
           icon={(props) => (
-           <Text style={{ color: props.color, fontSize: props.size, lineHeight: props.size, fontWeight: '700' }}>
-             +
-          </Text>
+            <Text style={{ color: props.color, fontSize: props.size, lineHeight: props.size, fontWeight: '700' }}>
+              +
+            </Text>
           )}
           onPress={() => navigation.navigate('Tweet')}
           style={{
             position: 'absolute',
             right: 16,
-            bottom: 88, 
+            bottom: 88,
             backgroundColor: colors.primary,
           }}
           color={colors.onPrimary}
@@ -321,7 +332,7 @@ export default function HomeScreen({ navigation, route }) {
   );
 }
 
-/*ActionStat Component*/
+/* ActionStat Component */
 function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   const content = (
     <>
