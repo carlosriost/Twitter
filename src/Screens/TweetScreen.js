@@ -26,14 +26,14 @@ export default function TweetScreen({ navigation, route }) {
   const [currentTweet, setCurrentTweet] = useState(route.params?.tweet || null);
   const [replies, setReplies] = useState([]);
 
-  // Perfil del usuario logueado
+  //Perfil del usuario logueado
   const [profile, setProfile] = useState(profileStore.getProfile());
   useEffect(() => {
     const unsubscribe = profileStore.subscribe(setProfile);
     return () => unsubscribe();
   }, []);
 
-  // Identidad mostrada en el composer (prioriza profileStore)
+  //Identidad mostrada en el composer (prioriza profileStore)
   const username =
     profile?.username ||
     auth.currentUser?.displayName ||
@@ -46,11 +46,11 @@ export default function TweetScreen({ navigation, route }) {
     username ||
     'Usuario';
 
-  // Modo respuesta
+  //Modo respuesta
   const isReplyMode = route.params?.mode === 'reply' && route.params?.tweetId;
   const tweetId = route.params?.tweetId;
 
-  // Escuchar tweet y respuestas cuando es reply
+  //Escuchar tweet y respuestas cuando es reply
   useEffect(() => {
     if (!isReplyMode || !tweetId) return;
 
@@ -63,7 +63,7 @@ export default function TweetScreen({ navigation, route }) {
     };
   }, [isReplyMode, tweetId]);
 
-  // Publicar tweet o respuesta
+  //Publicar tweet o respuesta
   const handlePost = async () => {
     if (!tweet.trim()) return;
     const uid = auth.currentUser?.uid || null;

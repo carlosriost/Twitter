@@ -98,7 +98,7 @@ export default function UserTweetsScreen({ route, navigation }) {
     };
   }, [isOwnProfile, screenUsername]);
 
-  // Escuchar tweets en tiempo real
+  //tweets en tiempo real
   useEffect(() => {
     let unsubscribe;
     try {
@@ -157,14 +157,14 @@ export default function UserTweetsScreen({ route, navigation }) {
   // Render de cada tweet
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
-      {/* Avatar */}
+      {/*Avatar*/}
       <View style={styles.avatar}>
         <Text style={styles.avatarInitial}>
           {(item.fullname?.[0] || item.username?.[0] || 'U').toUpperCase()}
         </Text>
       </View>
 
-      {/* Contenido del tweet */}
+      {/*Contenido del tweet*/}
       <View style={styles.tweetBody}>
         <View style={styles.tweetHeader}>
           <Text style={styles.tweetName}>{item.fullname || item.username}</Text>
@@ -176,7 +176,7 @@ export default function UserTweetsScreen({ route, navigation }) {
           <Text style={styles.tweetContent}>{item.text || item.content}</Text>
         )}
 
-        {/* Mostrar imágenes adjuntas */}
+        {/*Mostrar imágenes adjuntas*/}
         {Array.isArray(item.media) && item.media.length > 0 && (
           <View
             style={[
@@ -199,7 +199,7 @@ export default function UserTweetsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Acciones */}
+        {/*Acciones*/}
         <View style={styles.tweetActions}>
           <ActionStat icon="💬" value={item.repliesCount} />
           <ActionStat
@@ -246,7 +246,7 @@ export default function UserTweetsScreen({ route, navigation }) {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
-            {/* Header superior */}
+            {/*Header superior*/}
             <View style={styles.topBar}>
               <Tap onPress={() => navigation.goBack()}>
                 <Text style={styles.backArrow}>‹</Text>
@@ -257,10 +257,10 @@ export default function UserTweetsScreen({ route, navigation }) {
               </View>
             </View>
 
-            {/* Banner */}
+            {/*Banner*/}
             <View style={styles.banner} />
 
-            {/* Perfil */}
+            {/*Perfil*/}
             <View style={styles.profileCard}>
               <View style={styles.profileAvatar}>
                 <Text style={styles.profileAvatarInitial}>
@@ -329,7 +329,7 @@ export default function UserTweetsScreen({ route, navigation }) {
   );
 }
 
-/* Componente ActionStat */
+
 function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   const content = (
     <>

@@ -149,7 +149,7 @@ export default function EditProfileScreen({ navigation }) {
         </Tap>
       </View>
 
-      {/* Contenido */}
+      {/*Contenido*/}
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
         keyboardShouldPersistTaps="handled"

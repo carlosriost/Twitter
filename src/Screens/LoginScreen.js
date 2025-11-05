@@ -31,7 +31,7 @@ export default function LoginScreen({ navigation }) {
       const user = await loginUser(email, password);
       const profile = await getUserProfile(user.uid);
 
-      console.log('✅ Sesión iniciada. Perfil del usuario:', profile);
+      console.log('Sesión iniciada. Perfil del usuario:', profile);
       if (profile) {
         profileStore.setProfile({ uid: user.uid, ...profile });
       } else {

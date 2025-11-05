@@ -13,7 +13,7 @@ export default StyleSheet.create({
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    paddingTop: 35, // si luego usas insets, puedes mover esto al componente
+    paddingTop: 35, 
     backgroundColor: colors.background,
   },
 

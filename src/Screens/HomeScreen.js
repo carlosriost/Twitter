@@ -18,7 +18,7 @@ import { auth } from '../Config/firebaseConfig';
 import { subscribeToTweets, toggleLike, toggleRetweet } from '../Services/tweetService';
 import { profileStore } from '../Services/profileStore';
 
-/* Íconos inferiores */
+/*Íconos inferiores*/
 const bottomNavItems = [
   { id: 'home', label: 'Home', icon: '🏠', route: 'Home' },
   { id: 'search', label: 'Search', icon: '🔍', route: 'Home' },
@@ -26,7 +26,7 @@ const bottomNavItems = [
   { id: 'messages', label: 'Inbox', icon: '✉️', route: 'Home' },
 ];
 
-/* Íconos del compositor */
+/*Íconos del compositor*/
 const composerIcons = ['🖼️', '🎞️', '📊', '😊'];
 
 export default function HomeScreen({ navigation, route }) {
@@ -36,7 +36,7 @@ export default function HomeScreen({ navigation, route }) {
   const [currentUserId, setCurrentUserId] = useState(auth.currentUser?.uid ?? null);
   const [loading, setLoading] = useState(true);
 
-  // Derivar usuario/nombre visibles
+  //Derivar usuario/nombre visibles
   const userUsername =
     profile?.username ||
     route.params?.username ||
@@ -48,7 +48,7 @@ export default function HomeScreen({ navigation, route }) {
     route.params?.fullname ||
     userUsername;
 
-  /* Mantener sesión y perfil global actualizados */
+  /*Mantener sesión y perfil global actualizados*/
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       setCurrentUserId(user?.uid ?? null);
@@ -76,7 +76,7 @@ export default function HomeScreen({ navigation, route }) {
     };
   }, [currentUserId]);
 
-  /* Validar autenticación antes de acciones */
+  /*Validar autenticación antes de acciones*/
   const ensureAuthenticated = useCallback(() => {
     if (!currentUserId) {
       Alert.alert('Autenticación requerida', 'Inicia sesión para interactuar con los tweets.');
@@ -193,7 +193,7 @@ export default function HomeScreen({ navigation, route }) {
     </View>
   );
 
-  /* Pantalla */
+  /*Pantalla*/
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
@@ -299,7 +299,7 @@ export default function HomeScreen({ navigation, route }) {
         />
       )}
 
-      {/* Bottom Navigation */}
+      {/*Bottom Navigation*/}
       <View style={[styles.bottomBar, { marginBottom: 16 }]}>
         {bottomNavItems.map((item) => (
           <Tap key={item.id} style={styles.bottomItem} onPress={() => navigation.navigate(item.route)}>
@@ -309,7 +309,7 @@ export default function HomeScreen({ navigation, route }) {
         ))}
       </View>
 
-      {/* FAB compose */}
+    
       <Portal>
         <FAB
           icon={(props) => (
@@ -332,7 +332,7 @@ export default function HomeScreen({ navigation, route }) {
   );
 }
 
-/* ActionStat Component */
+
 function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   const content = (
     <>

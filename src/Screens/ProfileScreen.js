@@ -46,7 +46,7 @@ export default function ProfileScreen() {
     setLoading(true);
 
     try {
-      // perfil del usuario
+      //perfil del usuario
       const userRef = doc(db, 'users', user.uid);
       unsubscribeUser = onSnapshot(
         userRef,
@@ -73,7 +73,7 @@ export default function ProfileScreen() {
         }
       );
 
-      // los tweets del usuario
+      //los tweets del usuario
       const tweetsRef = collection(db, 'tweets');
       const tweetsQuery = query(
         tweetsRef,
