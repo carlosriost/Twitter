@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StatusBar,
   ScrollView,
   ActivityIndicator,
@@ -14,6 +13,7 @@ import styles from '../Styles/LoginScreen.styles';
 import { loginUser } from '../Services/authService';
 import { getUserProfile } from '../Services/userService';
 import { profileStore } from '../Services/profileStore';
+import Tap from '../Components/Tap';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -44,7 +44,7 @@ export default function LoginScreen({ navigation }) {
         fullname: profile?.fullname || 'Usuario',
       });
     } catch (error) {
-      console.error('❌ Error al iniciar sesión:', error);
+      console.error('Error al iniciar sesión:', error);
 
       if (error.code === 'auth/invalid-email') {
         alert('El correo ingresado no es válido.');
@@ -74,7 +74,9 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.logo}>∃ꊼ∃ꊼ</Text>
         </View>
 
-        <Text style={styles.title}>Sign in to <Text style={styles.brand}>∃ꊼ∃ꊼ</Text></Text>
+        <Text style={styles.title}>
+          Sign in to <Text style={styles.brand}>∃ꊼ∃ꊼ</Text>
+        </Text>
 
         <View style={styles.formCard}>
           <TextInput
@@ -99,28 +101,29 @@ export default function LoginScreen({ navigation }) {
             onSubmitEditing={handleLogin}
           />
 
-          <TouchableOpacity style={styles.forgotButton}>
+          <Tap style={styles.forgotButton} onPress={() => {/*recuperar contraseña*/}}>
             <Text style={styles.forgotText}>Forgot password?</Text>
-          </TouchableOpacity>
+          </Tap>
 
-          <TouchableOpacity
-            style={[styles.primaryButton, (!email || !password) && styles.primaryButtonDisabled]}
+          <Tap
+            style={styles.primaryButton}
             onPress={handleLogin}
-            disabled={!email || !password || loading}
+            disabled={loading}
+            accessibilityRole="button"
           >
-            {loading ? (
-              <ActivityIndicator color={colors.onPrimary} />
-            ) : (
-              <Text style={styles.primaryButtonText}>Sign in</Text>
-            )}
-          </TouchableOpacity>
+           {loading ? (
+           <ActivityIndicator color={colors.onPrimary} />
+           ) : (
+            <Text style={styles.primaryButtonText}>Sign in</Text>
+       )}
+         </Tap>
         </View>
 
         <View style={styles.footerPrompt}>
           <Text style={styles.footerText}>Don’t have an account?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+          <Tap onPress={() => navigation.navigate('Register')}>
             <Text style={styles.footerLink}>Sign up</Text>
-          </TouchableOpacity>
+          </Tap>
         </View>
       </ScrollView>
     </SafeAreaView>

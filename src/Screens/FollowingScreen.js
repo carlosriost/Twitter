@@ -4,13 +4,13 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '../Styles/theme';
 import styles from '../Styles/FollowingScreen.styles';
 import { getFollowing } from '../Services/tweetService';
+import Tap from '../Components/Tap';
 
 export default function FollowingScreen({ route, navigation }) {
   const [following, setFollowing] = useState([]);
@@ -48,9 +48,9 @@ export default function FollowingScreen({ route, navigation }) {
           <Text style={styles.bio}>You follow each other</Text>
         </View>
 
-        <TouchableOpacity style={styles.followingButton}>
+        <Tap style={styles.followingButton}>
           <Text style={styles.followingText}>Following</Text>
-        </TouchableOpacity>
+        </Tap>
       </View>
     );
   };
@@ -66,32 +66,32 @@ export default function FollowingScreen({ route, navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Header */}
+      {/*Header*/}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Tap onPress={() => navigation.goBack()}>
           <Text style={styles.backArrow}>‹</Text>
-        </TouchableOpacity>
+        </Tap>
         <View>
           <Text style={styles.headerTitle}>Following</Text>
           <Text style={styles.headerSubtitle}>@{username}</Text>
         </View>
       </View>
 
-      {/* Segmento superior */}
+      {/*Segmento superior*/}
       <View style={styles.segment}>
-        <TouchableOpacity
+        <Tap
           style={styles.segmentItem}
           onPress={() => navigation.navigate('Followers', { username })}
         >
           <Text style={styles.segmentLabel}>Followers</Text>
-        </TouchableOpacity>
+        </Tap>
 
-        <TouchableOpacity style={[styles.segmentItem, styles.segmentActive]}>
+        <Tap style={[styles.segmentItem, styles.segmentActive]}>
           <Text style={[styles.segmentLabel, styles.segmentLabelActive]}>Following</Text>
-        </TouchableOpacity>
+        </Tap>
       </View>
 
-      {/* Lista */}
+      {/*Lista*/}
       <FlatList
         data={following}
         keyExtractor={(item, index) => index.toString()}

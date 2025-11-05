@@ -4,13 +4,13 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '../Styles/theme';
 import styles from '../Styles/FollowersScreen.styles';
-import { getFollowers } from '../Services/tweetService'; // 🔹 Importa el servicio de Firestore
+import { getFollowers } from '../Services/tweetService'; 
+import Tap from '../Components/Tap';
 
 export default function FollowersScreen({ route, navigation }) {
   const [followers, setFollowers] = useState([]);
@@ -52,9 +52,9 @@ export default function FollowersScreen({ route, navigation }) {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.followButton}>
+        <Tap style={styles.followButton}>
           <Text style={styles.followText}>Follow</Text>
-        </TouchableOpacity>
+        </Tap>
       </View>
     );
   };
@@ -70,32 +70,32 @@ export default function FollowersScreen({ route, navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Header */}
+      {/*Header*/}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Tap onPress={() => navigation.goBack()}>
           <Text style={styles.backArrow}>‹</Text>
-        </TouchableOpacity>
+        </Tap>
         <View>
           <Text style={styles.headerTitle}>Followers</Text>
           <Text style={styles.headerSubtitle}>@{username}</Text>
         </View>
       </View>
 
-      {/* Segmento superior */}
+      {/*Segmento superior*/}
       <View style={styles.segment}>
-        <TouchableOpacity style={[styles.segmentItem, styles.segmentActive]}>
+        <Tap style={[styles.segmentItem, styles.segmentActive]}>
           <Text style={[styles.segmentLabel, styles.segmentLabelActive]}>Followers</Text>
-        </TouchableOpacity>
+        </Tap>
 
-        <TouchableOpacity
+        <Tap
           style={styles.segmentItem}
           onPress={() => navigation.navigate('Following', { username })}
         >
           <Text style={styles.segmentLabel}>Following</Text>
-        </TouchableOpacity>
+        </Tap>
       </View>
 
-      {/* Lista de seguidores */}
+      {/*Lista de seguidores*/}
       <FlatList
         data={followers}
         keyExtractor={(item, index) => index.toString()}

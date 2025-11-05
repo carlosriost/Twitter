@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StatusBar,
   ScrollView,
   ActivityIndicator,
@@ -15,6 +14,7 @@ import styles from '../Styles/RegisterScreen.styles';
 import { auth } from '../Config/firebaseConfig';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { createUserProfile } from '../Services/userService';
+import Tap from '../Components/Tap';
 
 export default function RegisterScreen({ navigation }) {
   const [fullname, setFullname] = useState('');
@@ -31,18 +31,18 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
-      // 🔹 Crear usuario en Firebase Auth
+      //Crear usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      console.log('✅ Usuario creado:', user.uid);
+      console.log('Usuario creado:', user.uid);
 
-      // 🔹 Crear perfil en Firestore
+      //Crear perfil en Firestore
       await createUserProfile(user.uid, username, fullname, email);
 
-      Alert.alert('✅ Registro exitoso', 'Tu cuenta fue creada correctamente.');
+      Alert.alert('Registro exitoso', 'Tu cuenta fue creada correctamente.');
       navigation.navigate('Login');
     } catch (error) {
-      console.error('❌ Error al registrar:', error.message);
+      console.error('Error al registrar:', error.message);
       if (error.code === 'auth/email-already-in-use') {
         Alert.alert(
           'Correo ya registrado',
@@ -73,8 +73,9 @@ export default function RegisterScreen({ navigation }) {
         </View>
 
         <Text style={styles.title}>
-        Create your <Text style={styles.brand}>∃ꊼ∃ꊼ</Text> account
+          Create your <Text style={styles.brand}>∃ꊼ∃ꊼ</Text> account
         </Text>
+
         <View style={styles.formCard}>
           <TextInput
             style={styles.input}
@@ -117,27 +118,25 @@ export default function RegisterScreen({ navigation }) {
             onSubmitEditing={handleRegister}
           />
 
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              (!fullname || !username || !email || !password) && styles.primaryButtonDisabled,
-            ]}
-            onPress={handleRegister}
-            disabled={!fullname || !username || !email || !password || loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.onPrimary} />
-            ) : (
-              <Text style={styles.primaryButtonText}>Next</Text>
-            )}
-          </TouchableOpacity>
+        <Tap
+        style={styles.primaryButton}
+        onPress={handleRegister}
+        disabled={loading}
+        accessibilityRole="button"
+        >
+        {loading ? (
+         <ActivityIndicator color={colors.onPrimary} />
+       ) : (
+         <Text style={styles.primaryButtonText}>Next</Text>
+       )}
+        </Tap>
         </View>
 
         <View style={styles.footerPrompt}>
           <Text style={styles.footerText}>Already have an account?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Tap onPress={() => navigation.navigate('Login')}>
             <Text style={styles.footerLink}>Sign in</Text>
-          </TouchableOpacity>
+          </Tap>
         </View>
       </ScrollView>
     </SafeAreaView>

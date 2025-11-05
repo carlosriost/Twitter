@@ -58,7 +58,7 @@ export default StyleSheet.create({
 
   info: { flex: 1 },
   name: { fontWeight: '700', color: colors.text, fontSize: typography.body },
-  // Antes: colors.muted -> usamos textLight para consistencia
+ 
   username: {
     color: colors.textLight,
     fontSize: typography.caption,

@@ -4,22 +4,21 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   TextInput,
   StatusBar,
   Image,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { FAB, Portal } from 'react-native-paper';
+import Tap from '../Components/Tap';
 import styles from '../Styles/HomeScreen.styles';
 import { colors } from '../Styles/theme';
 import { auth } from '../Config/firebaseConfig';
 import { subscribeToTweets, toggleLike, toggleRetweet } from '../Services/tweetService';
 import { profileStore } from '../Services/profileStore';
 
-/* ────────────────────────────────
- * 🔹 Íconos inferiores
- * ──────────────────────────────── */
+/*Íconos inferiores*/
 const bottomNavItems = [
   { id: 'home', label: 'Home', icon: '🏠', route: 'Home' },
   { id: 'search', label: 'Search', icon: '🔍', route: 'Home' },
@@ -27,9 +26,7 @@ const bottomNavItems = [
   { id: 'messages', label: 'Inbox', icon: '✉️', route: 'Home' },
 ];
 
-/* ────────────────────────────────
- * 🔹 Íconos del compositor
- * ──────────────────────────────── */
+/* Íconos del compositor */
 const composerIcons = ['🖼️', '🎞️', '📊', '😊'];
 
 export default function HomeScreen({ navigation, route }) {
@@ -40,9 +37,7 @@ export default function HomeScreen({ navigation, route }) {
   const [currentUserId, setCurrentUserId] = useState(auth.currentUser?.uid ?? null);
   const [loading, setLoading] = useState(true);
 
-  /* ────────────────────────────────
-   * 👤 Mantener sesión y perfil global actualizados
-   * ──────────────────────────────── */
+  /*Mantener sesión y perfil global actualizados*/
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       setCurrentUserId(user?.uid ?? null);
@@ -54,9 +49,7 @@ export default function HomeScreen({ navigation, route }) {
     };
   }, []);
 
-  /* ────────────────────────────────
-   * 🕒 Escuchar tweets en tiempo real
-   * ──────────────────────────────── */
+  /*tweets en tiempo real*/
   useEffect(() => {
     setLoading(true);
     const unsubscribe = subscribeToTweets({
@@ -72,9 +65,7 @@ export default function HomeScreen({ navigation, route }) {
     };
   }, [currentUserId]);
 
-  /* ────────────────────────────────
-   * 🔒 Validar autenticación antes de acciones
-   * ──────────────────────────────── */
+  /*Validar autenticación antes de acciones*/
   const ensureAuthenticated = useCallback(() => {
     if (!currentUserId) {
       Alert.alert('Autenticación requerida', 'Inicia sesión para interactuar con los tweets.');
@@ -83,7 +74,7 @@ export default function HomeScreen({ navigation, route }) {
     return true;
   }, [currentUserId]);
 
-  /* ❤️ Like */
+  /*Like */
   const handleToggleLike = useCallback(
     async (tweetId) => {
       if (!ensureAuthenticated()) return;
@@ -96,7 +87,7 @@ export default function HomeScreen({ navigation, route }) {
     [currentUserId, ensureAuthenticated]
   );
 
-  /* 🔁 Retweet */
+  /*Retweet */
   const handleToggleRetweet = useCallback(
     async (tweetId) => {
       if (!ensureAuthenticated()) return;
@@ -109,7 +100,7 @@ export default function HomeScreen({ navigation, route }) {
     [currentUserId, ensureAuthenticated]
   );
 
-  /* ⚡ Accesos rápidos */
+  /*Accesos rápidos*/
   const quickActions = useMemo(
     () => [
       { id: 'tweet', label: 'Compose', onPress: () => navigation.navigate('Tweet') },
@@ -120,7 +111,9 @@ export default function HomeScreen({ navigation, route }) {
     [navigation]
   );
 
-  /* 🧩 Render de cada tweet */
+  const listPaddingBottom = 56 + 24;
+
+  /*Render de cada tweet */
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
       <View style={styles.avatar}>
@@ -139,14 +132,13 @@ export default function HomeScreen({ navigation, route }) {
             <Text style={styles.tweetName}>{item.fullname || 'Usuario'}</Text>
             <Text style={styles.tweetMeta}>@{item.username || 'user'}</Text>
           </View>
-          <Text style={styles.moreIcon}>⋯</Text>
         </View>
 
         {!!(item.text || item.content) && (
           <Text style={styles.tweetContent}>{item.text || item.content}</Text>
         )}
 
-        {/* 🖼️ Soporte de imágenes */}
+        {/*Soporte de imágenes */}
         {Array.isArray(item.media) && item.media.length > 0 && (
           <View
             style={[
@@ -169,7 +161,7 @@ export default function HomeScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* 💬 Acciones */}
+        {/*Acciones */}
         <View style={styles.tweetActions}>
           <ActionStat icon="💬" value={item.repliesCount} />
           <ActionStat
@@ -190,7 +182,7 @@ export default function HomeScreen({ navigation, route }) {
     </View>
   );
 
-  /* 🌀 Pantalla */
+  /*Pantalla */
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
@@ -203,15 +195,12 @@ export default function HomeScreen({ navigation, route }) {
           keyExtractor={(item) => item.id}
           renderItem={renderTweet}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: listPaddingBottom }]}
           ListHeaderComponent={
             <>
-              {/* 🧭 Barra superior */}
+              {/*Barra superior */}
               <View style={styles.topBar}>
-                <TouchableOpacity
-                  style={styles.profileButton}
-                  onPress={() => navigation.navigate('Profile')}
-                >
+                <Tap style={styles.profileButton} onPress={() => navigation.navigate('Profile')}>
                   {profile?.photoURL ? (
                     <Image source={{ uri: profile.photoURL }} style={styles.avatarImage} />
                   ) : (
@@ -219,15 +208,15 @@ export default function HomeScreen({ navigation, route }) {
                       {username[0]?.toUpperCase()}
                     </Text>
                   )}
-                </TouchableOpacity>
+                </Tap>
                 <Text style={styles.brandMark}>∃ꊼ∃ꊼ</Text>
                 <Text style={styles.sparkle}>✨</Text>
               </View>
 
-              {/* Tabs */}
+              {/*Tabs */}
               <View style={styles.tabs}>
                 {['forYou', 'following'].map((tab) => (
-                  <TouchableOpacity
+                  <Tap
                     key={tab}
                     style={styles.tabItem}
                     onPress={() => setActiveTab(tab)}
@@ -241,11 +230,11 @@ export default function HomeScreen({ navigation, route }) {
                       {tab === 'forYou' ? 'For you' : 'Following'}
                     </Text>
                     {activeTab === tab && <View style={styles.tabIndicator} />}
-                  </TouchableOpacity>
+                  </Tap>
                 ))}
               </View>
 
-              {/* Composer */}
+              {/*Composer*/}
               <View style={styles.composer}>
                 <View style={styles.avatarSmall}>
                   {profile?.photoURL ? (
@@ -277,26 +266,19 @@ export default function HomeScreen({ navigation, route }) {
                         </Text>
                       ))}
                     </View>
-                    <TouchableOpacity
-                      style={styles.tweetButton}
-                      onPress={() => navigation.navigate('Tweet')}
-                    >
+                    <Tap style={styles.tweetButton} onPress={() => navigation.navigate('Tweet')}>
                       <Text style={styles.tweetButtonText}>Post</Text>
-                    </TouchableOpacity>
+                    </Tap>
                   </View>
                 </View>
               </View>
 
-              {/* Quick Actions */}
+              {/*Quick Actions*/}
               <View style={styles.quickActions}>
                 {quickActions.map((action) => (
-                  <TouchableOpacity
-                    key={action.id}
-                    style={styles.actionChip}
-                    onPress={action.onPress}
-                  >
+                  <Tap key={action.id} style={styles.actionChip} onPress={action.onPress}>
                     <Text style={styles.actionChipText}>{action.label}</Text>
-                  </TouchableOpacity>
+                  </Tap>
                 ))}
               </View>
 
@@ -306,26 +288,40 @@ export default function HomeScreen({ navigation, route }) {
         />
       )}
 
-      {/* 📱 Bottom Navigation */}
-      <View style={styles.bottomBar}>
+      {/*Bottom Navigation*/}
+      <View style={[styles.bottomBar, { marginBottom: 16 }]}>
         {bottomNavItems.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.bottomItem}
-            onPress={() => navigation.navigate(item.route)}
-          >
+          <Tap key={item.id} style={styles.bottomItem} onPress={() => navigation.navigate(item.route)}>
             <Text style={styles.bottomItemIcon}>{item.icon}</Text>
             <Text style={styles.bottomItemLabel}>{item.label}</Text>
-          </TouchableOpacity>
+          </Tap>
         ))}
       </View>
+
+      {/*FAB compose*/}
+      <Portal>
+        <FAB
+          icon={(props) => (
+           <Text style={{ color: props.color, fontSize: props.size, lineHeight: props.size, fontWeight: '700' }}>
+             +
+          </Text>
+          )}
+          onPress={() => navigation.navigate('Tweet')}
+          style={{
+            position: 'absolute',
+            right: 16,
+            bottom: 88, 
+            backgroundColor: colors.primary,
+          }}
+          color={colors.onPrimary}
+          accessibilityLabel="Compose"
+        />
+      </Portal>
     </SafeAreaView>
   );
 }
 
-/* ────────────────────────────────
- * 💬 ActionStat Component
- * ──────────────────────────────── */
+/*ActionStat Component*/
 function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   const content = (
     <>
@@ -355,12 +351,8 @@ function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   if (!onPress) return <View style={styles.actionStat}>{content}</View>;
 
   return (
-    <TouchableOpacity
-      style={[styles.actionStat, styles.actionStatPressable]}
-      onPress={onPress}
-      disabled={disabled}
-    >
+    <Tap style={[styles.actionStat, styles.actionStatPressable]} onPress={onPress} disabled={disabled}>
       {content}
-    </TouchableOpacity>
+    </Tap>
   );
 }

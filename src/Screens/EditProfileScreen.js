@@ -26,7 +26,7 @@ export default function EditProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // 🔹 Cargar datos actuales del usuario
+  //Cargar datos actuales del usuario
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -49,7 +49,7 @@ export default function EditProfileScreen({ navigation }) {
     loadUserData();
   }, []);
 
-  // 📸 Escoger nueva foto de perfil
+  //Escoger nueva foto de perfil
   const handlePickImage = async () => {
     const options = { mediaType: 'photo', quality: 0.8, includeBase64: false };
 
@@ -65,7 +65,7 @@ export default function EditProfileScreen({ navigation }) {
     });
   };
 
-  // 💾 Guardar cambios
+  //Guardar cambios
   const handleSave = async () => {
     if (!fullname.trim()) {
       Alert.alert('Campo obligatorio', 'El nombre no puede estar vacío.');
@@ -76,7 +76,7 @@ export default function EditProfileScreen({ navigation }) {
     try {
       let newPhotoURL = photoURL;
 
-      // 🔹 Subir imagen si es nueva (no URL remota)
+      // Subir imagen si es nueva (no URL remota)
       if (photoURL && !photoURL.startsWith('https://')) {
         const response = await fetch(photoURL);
         const blob = await response.blob();
@@ -85,7 +85,7 @@ export default function EditProfileScreen({ navigation }) {
         newPhotoURL = await getDownloadURL(storageRef);
       }
 
-      // 🔹 Actualizar Firestore
+      //Actualizar Firestore
       const userRef = doc(db, 'users', user.uid);
       const updates = {
         fullname: fullname.trim(),
@@ -95,7 +95,7 @@ export default function EditProfileScreen({ navigation }) {
       };
       await updateDoc(userRef, updates);
 
-      // 🔁 Actualizar estado local + global
+      // Actualizar estado local + global
       const refreshed = { uid: user.uid, ...updates };
       profileStore.setProfile(refreshed);
       setFullname(refreshed.fullname);
@@ -124,7 +124,7 @@ export default function EditProfileScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Header */}
+      {/*Header*/}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelText}>Cancel</Text>
@@ -143,7 +143,7 @@ export default function EditProfileScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Contenido principal */}
+      {/*Contenido principal*/}
       <View style={styles.container}>
         <TouchableOpacity onPress={handlePickImage}>
           <Image

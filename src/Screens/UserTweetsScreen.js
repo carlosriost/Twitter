@@ -5,7 +5,6 @@ import {
   Text,
   FlatList,
   StatusBar,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
   Image,
@@ -13,11 +12,9 @@ import {
 import { colors } from '../Styles/theme';
 import styles from '../Styles/UserTweetsScreen.styles';
 import { auth } from '../Config/firebaseConfig';
-import {
-  getTweetsByUser,
-  subscribeToTweetsByUser,
-} from '../Services/tweetService';
+import { subscribeToTweetsByUser } from '../Services/tweetService';
 import { toggleLike, toggleRetweet } from '../Services/engagementService';
+import Tap from '../Components/Tap';
 
 const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
 
@@ -29,7 +26,7 @@ export default function UserTweetsScreen({ route, navigation }) {
   const username = route.params?.username || 'user';
   const fullname = route.params?.fullname || 'Usuario';
 
-  // 🔹 Mantener autenticación actualizada
+  //Mantener autenticación actualizada
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       setCurrentUserId(user?.uid ?? null);
@@ -37,7 +34,7 @@ export default function UserTweetsScreen({ route, navigation }) {
     return () => unsubscribeAuth();
   }, []);
 
-  // 🔹 Escuchar tweets en tiempo real
+  //tweets en tiempo real
   useEffect(() => {
     let unsubscribe;
     try {
@@ -58,7 +55,7 @@ export default function UserTweetsScreen({ route, navigation }) {
     };
   }, [username, currentUserId]);
 
-  // 🔒 Validar autenticación antes de interactuar
+  //Validar autenticación antes de interactuar
   const ensureAuthenticated = useCallback(() => {
     if (!currentUserId) {
       Alert.alert('Autenticación requerida', 'Inicia sesión para interactuar con los tweets.');
@@ -67,7 +64,7 @@ export default function UserTweetsScreen({ route, navigation }) {
     return true;
   }, [currentUserId]);
 
-  // ❤️ Like
+  //Like
   const handleToggleLike = useCallback(
     async (tweetId) => {
       if (!ensureAuthenticated()) return;
@@ -80,7 +77,7 @@ export default function UserTweetsScreen({ route, navigation }) {
     [currentUserId, ensureAuthenticated]
   );
 
-  // 🔁 Retweet
+  //Retweet
   const handleToggleRetweet = useCallback(
     async (tweetId) => {
       if (!ensureAuthenticated()) return;
@@ -93,17 +90,17 @@ export default function UserTweetsScreen({ route, navigation }) {
     [currentUserId, ensureAuthenticated]
   );
 
-  // 🧩 Render de cada tweet
+  //Render de cada tweet
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
-      {/* Avatar */}
+      {/*Avatar*/}
       <View style={styles.avatar}>
         <Text style={styles.avatarInitial}>
           {(item.fullname?.[0] || item.username?.[0] || 'U').toUpperCase()}
         </Text>
       </View>
 
-      {/* Contenido del tweet */}
+      {/*Contenido del tweet*/}
       <View style={styles.tweetBody}>
         <View style={styles.tweetHeader}>
           <Text style={styles.tweetName}>{item.fullname}</Text>
@@ -115,7 +112,7 @@ export default function UserTweetsScreen({ route, navigation }) {
           <Text style={styles.tweetContent}>{item.text || item.content}</Text>
         )}
 
-        {/* 🖼️ Mostrar imágenes adjuntas */}
+        {/*Mostrar imágenes adjuntas*/}
         {Array.isArray(item.media) && item.media.length > 0 && (
           <View
             style={[
@@ -138,7 +135,7 @@ export default function UserTweetsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Acciones */}
+        {/*Acciones*/}
         <View style={styles.tweetActions}>
           <ActionStat icon="💬" value={item.repliesCount} />
           <ActionStat
@@ -185,30 +182,31 @@ export default function UserTweetsScreen({ route, navigation }) {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
-            {/* Header superior */}
+            {/*Header superior*/}
             <View style={styles.topBar}>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Tap onPress={() => navigation.goBack()}>
                 <Text style={styles.backArrow}>‹</Text>
-              </TouchableOpacity>
+              </Tap>
               <View>
                 <Text style={styles.topBarName}>{fullname}</Text>
                 <Text style={styles.topBarCount}>{tweets.length} posts</Text>
               </View>
             </View>
 
-            {/* Banner */}
+            {/*Banner*/}
             <View style={styles.banner} />
 
-            {/* Perfil */}
+            {/*Perfil*/}
             <View style={styles.profileCard}>
               <View style={styles.profileAvatar}>
                 <Text style={styles.profileAvatarInitial}>
                   {fullname[0]?.toUpperCase() || 'U'}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.editButton}>
+
+              <Tap style={styles.editButton}>
                 <Text style={styles.editButtonText}>Edit profile</Text>
-              </TouchableOpacity>
+              </Tap>
 
               <Text style={styles.profileName}>{fullname}</Text>
               <Text style={styles.profileUsername}>@{username}</Text>
@@ -233,7 +231,7 @@ export default function UserTweetsScreen({ route, navigation }) {
               </View>
             </View>
 
-            {/* Tabs */}
+            {/*Tabs*/}
             <View style={styles.tabRow}>
               {profileTabs.map((tab, index) => (
                 <View
@@ -259,7 +257,7 @@ export default function UserTweetsScreen({ route, navigation }) {
   );
 }
 
-/* 💬 Componente ActionStat */
+/*Componente ActionStat*/
 function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   const content = (
     <>
@@ -289,12 +287,13 @@ function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   if (!onPress) return <View style={styles.actionStat}>{content}</View>;
 
   return (
-    <TouchableOpacity
+    <Tap
       style={[styles.actionStat, styles.actionStatPressable]}
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
     >
       {content}
-    </TouchableOpacity>
+    </Tap>
   );
 }

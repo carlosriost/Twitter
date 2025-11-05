@@ -5,7 +5,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StatusBar,
   ActivityIndicator,
   ScrollView,
@@ -18,6 +17,7 @@ import {
   listenToTweet,
   listenToReplies,
 } from '../Services/tweetService';
+import Tap from '../Components/Tap';
 
 export default function TweetScreen({ navigation, route }) {
   const [tweet, setTweet] = useState('');
@@ -25,17 +25,17 @@ export default function TweetScreen({ navigation, route }) {
   const [currentTweet, setCurrentTweet] = useState(route.params?.tweet || null);
   const [replies, setReplies] = useState([]);
 
-  // 🔹 Usuario autenticado
+  // Usuario autenticado
   const currentUser = auth.currentUser;
   const uid = currentUser?.uid || null;
   const username = currentUser?.displayName || route.params?.username || 'user';
   const fullname = route.params?.fullname || username || 'Usuario';
 
-  // 🔹 Modo respuesta
+  // Modo respuesta
   const isReplyMode = route.params?.mode === 'reply' && route.params?.tweetId;
   const tweetId = route.params?.tweetId;
 
-  // 🔹 Escuchar tweet y respuestas
+  // tweet y respuestas
   useEffect(() => {
     if (!isReplyMode || !tweetId) return;
 
@@ -48,7 +48,7 @@ export default function TweetScreen({ navigation, route }) {
     };
   }, [isReplyMode, tweetId]);
 
-  // 🔹 Publicar tweet o respuesta
+  // Publicar tweet o respuesta
   const handlePost = async () => {
     if (!tweet.trim()) return;
     if (!uid) {
@@ -83,35 +83,36 @@ export default function TweetScreen({ navigation, route }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* 🔹 Header */}
+      {/*Header*/}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Tap onPress={() => navigation.goBack()}>
           <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
+        </Tap>
 
-        <TouchableOpacity
-          style={[
-            styles.postButton,
-            (!tweet.trim() || loading) && styles.postButtonDisabled,
-          ]}
-          onPress={handlePost}
-          disabled={!tweet.trim() || loading}
+      <Tap
+        style={[
+        styles.postButton,
+        !tweet.trim() && styles.postButtonDisabled, // solo gris si está vacío
+        ]}
+        onPress={handlePost}
+        disabled={loading || !tweet.trim()} // deshabilitado para evitar doble envío, pero sin cambiar color
+        accessibilityRole="button"
         >
-          {loading ? (
-            <ActivityIndicator size="small" color={colors.background} />
-          ) : (
-            <Text style={styles.postButtonText}>
-              {isReplyMode ? 'Reply' : 'Post'}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {loading ? (
+        <ActivityIndicator size="small" color={colors.onPrimary} />
+        ) : (
+        <Text style={styles.postButtonText}>
+        {isReplyMode ? 'Reply' : 'Post'}
+        </Text>
+        )}
+      </Tap>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* 🔹 Si está en modo respuesta, muestra el tweet original */}
+        {/*Si está en modo respuesta, muestra el tweet original*/}
         {isReplyMode && currentTweet && (
           <View style={styles.threadCard}>
             <View style={styles.threadHeader}>
@@ -137,7 +138,7 @@ export default function TweetScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* 🔹 Área para escribir tweet o respuesta */}
+        {/*Área para escribir tweet o respuesta*/}
         <View style={styles.container}>
           <View style={styles.avatar}>
             <Text style={styles.avatarInitial}>
@@ -158,7 +159,7 @@ export default function TweetScreen({ navigation, route }) {
               onChangeText={setTweet}
             />
 
-            {/* 🔹 Barra inferior */}
+            {/*Barra inferior*/}
             <View style={styles.toolbar}>
               <View style={styles.iconRow}>
                 {['🖼️', '📍', '😊'].map((icon) => (

@@ -18,7 +18,7 @@ export default StyleSheet.create({
   },
     brand: { color: colors.primary, fontWeight: '800' },
 
-  // Antes: colors.elevated (no existe). Usamos surface como tarjeta.
+
   formCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
@@ -45,9 +45,9 @@ export default StyleSheet.create({
     paddingVertical: spacing.sm + spacing.xs,
     alignItems: 'center',
   },
-  // Texto/loader blancos sobre botón verde para contraste
+ 
   primaryButtonText: { color: colors.onPrimary, fontSize: typography.subtitle, fontWeight: '700' },
-  // Antes: colors.accent (no existe). Usamos border como deshabilitado.
+ 
   primaryButtonDisabled: { backgroundColor: colors.border },
 
   footerPrompt: {

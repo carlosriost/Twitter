@@ -1,28 +1,28 @@
 // src/Styles/theme.js
 
-// Paleta clara con acento verde (friendly para una red social)
+
 export const colors = {
-  // Acentos
-  primary: '#16A34A',     // emerald-600
-  primaryDark: '#15803D', // emerald-700
+  // Colores principales
+  primary: '#16A34A',     
+  primaryDark: '#15803D', 
 
   // Superficies claras
   background: '#FFFFFF',
-  surface: '#F8FAFC',     // slate-50
+  surface: '#F8FAFC',     
 
   // Texto
-  text: '#111827',        // gray-900
-  textLight: '#6B7280',   // gray-500
+  text: '#111827',        
+  textLight: '#6B7280',   
 
   // Bordes y estados
-  border: '#E5E7EB',      // gray-200
-  danger: '#EF4444',      // red-500
-  warning: '#F59E0B',     // amber-500
-  success: '#10B981',     // emerald-500
+  border: '#E5E7EB',      
+  danger: '#EF4444',      
+  warning: '#F59E0B',    
+  success: '#10B981',     
 
   // Contrastes útiles
-  onPrimary: '#FFFFFF',   // texto sobre botón verde
-  onBackground: '#111827' // texto principal sobre fondo claro
+  onPrimary: '#FFFFFF',   
+  onBackground: '#111827' 
 };
 
 export const spacing = {

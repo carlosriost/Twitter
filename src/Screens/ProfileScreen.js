@@ -5,7 +5,6 @@ import {
   Text,
   Image,
   FlatList,
-  TouchableOpacity,
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
@@ -23,6 +22,7 @@ import {
 import styles from '../Styles/ProfileScreen.styles';
 import { profileStore } from '../Services/profileStore';
 import { useNavigation } from '@react-navigation/native';
+import Tap from '../Components/Tap';
 
 const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
 
@@ -37,7 +37,7 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
 
-  // 🔹 Escuchar perfil y tweets en tiempo real
+  //perfil y tweets en tiempo real
   useEffect(() => {
     if (!user?.uid || !userData?.username) return;
 
@@ -46,7 +46,7 @@ export default function ProfileScreen() {
     setLoading(true);
 
     try {
-      // 👤 Escucha perfil del usuario
+      // perfil del usuario
       const userRef = doc(db, 'users', user.uid);
       unsubscribeUser = onSnapshot(
         userRef,
@@ -73,7 +73,7 @@ export default function ProfileScreen() {
         }
       );
 
-      // 🐦 Escucha los tweets del usuario
+      // los tweets del usuario
       const tweetsRef = collection(db, 'tweets');
       const tweetsQuery = query(
         tweetsRef,
@@ -100,7 +100,7 @@ export default function ProfileScreen() {
       setError('Error al cargar el perfil.');
     }
 
-    // 🔁 Refrescar datos reales al volver desde EditProfile
+    //Refrescar datos reales al volver desde EditProfile
     const unsubscribeFocus = navigation.addListener('focus', async () => {
       setRefreshing(true);
       try {
@@ -124,7 +124,7 @@ export default function ProfileScreen() {
     };
   }, [navigation, user?.uid, userData?.username]);
 
-  // 🔁 Tabs simuladas
+  //Tabs simuladas
   const handleSelectTab = (tab) => {
     setActiveTab(tab);
     if (tab !== 'Posts') {
@@ -134,11 +134,13 @@ export default function ProfileScreen() {
     }
   };
 
-  // 🐦 Render de cada tweet
+  //Render de cada tweet
   const renderTweet = ({ item }) => (
-    <TouchableOpacity
+    <Tap
       style={styles.tweetRow}
-      onPress={() => navigation.navigate('TweetDetail', { tweetId: item.id, tweet: item })}
+      onPress={() =>
+        navigation.navigate('TweetDetail', { tweetId: item.id, tweet: item })
+      }
     >
       <View style={styles.avatarSmall}>
         {userData?.photoURL ? (
@@ -156,7 +158,7 @@ export default function ProfileScreen() {
         </Text>
         <Text style={styles.tweetContent}>{item.content || item.text}</Text>
       </View>
-    </TouchableOpacity>
+    </Tap>
   );
 
   if (loading) {
@@ -179,11 +181,11 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-      {/* Header */}
+      {/*Header*/}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Tap onPress={() => navigation.goBack()}>
           <Text style={styles.backArrow}>‹</Text>
-        </TouchableOpacity>
+        </Tap>
         <View>
           <Text style={styles.topBarName}>{userData.fullname}</Text>
           <Text style={styles.topBarCount}>{tweets.length} posts</Text>
@@ -197,10 +199,10 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Banner */}
+      {/*Banner*/}
       <View style={styles.banner} />
 
-      {/* Perfil */}
+      {/*Perfil*/}
       <View style={styles.profileCard}>
         <View style={styles.profileAvatarWrapper}>
           <Image
@@ -213,12 +215,12 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <TouchableOpacity
+        <Tap
           style={styles.editButton}
           onPress={() => navigation.navigate('EditProfile')}
         >
           <Text style={styles.editButtonText}>Edit profile</Text>
-        </TouchableOpacity>
+        </Tap>
 
         <Text style={styles.profileName}>{userData.fullname}</Text>
         <Text style={styles.profileUsername}>@{userData.username}</Text>
@@ -230,24 +232,24 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      {/* Tabs */}
+      {/*Tabs*/}
       <View style={styles.tabRow}>
         {profileTabs.map((tab) => {
           const isActive = activeTab === tab;
           return (
-            <TouchableOpacity
+            <Tap
               key={tab}
               style={styles.tabItem}
               onPress={() => handleSelectTab(tab)}
             >
               <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab}</Text>
               {isActive && <View style={styles.tabIndicator} />}
-            </TouchableOpacity>
+            </Tap>
           );
         })}
       </View>
 
-      {/* Tweets */}
+      {/*Tweets*/}
       {tabLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color={colors.primary} />
@@ -269,3 +271,4 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
+

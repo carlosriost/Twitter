@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { colors, spacing, radii, typography } from '../Styles/theme';
+import Tap from '../Components/Tap';
 
 export default function TweetCard({ tweet, onPress, style, showActions = true }) {
   if (!tweet) {
@@ -14,7 +15,7 @@ export default function TweetCard({ tweet, onPress, style, showActions = true })
   const media = tweet.media || tweet.mediaUrls || tweet.mediaUrl;
 
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={[styles.container, style]}>
+    <Tap onPress={onPress} style={[styles.container, style]}>
       <View style={styles.avatar}>
         {tweet.photoURL ? (
           <Image source={{ uri: tweet.photoURL }} style={styles.avatarImage} />
@@ -50,7 +51,7 @@ export default function TweetCard({ tweet, onPress, style, showActions = true })
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </Tap>
   );
 }
 

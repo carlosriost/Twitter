@@ -88,7 +88,7 @@ export default StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  // Usamos onPrimary para asegurar contraste sobre verde
+  
   tweetButtonText: { color: colors.onPrimary, fontWeight: '700' },
 
   quickActions: {
@@ -169,19 +169,16 @@ export default StyleSheet.create({
   actionValueDisabled: { color: colors.border },
 
   bottomBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: colors.background,
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-around',
+  paddingVertical: 10,
+  borderTopWidth: 1,
+  borderTopColor: colors.border,
+  backgroundColor: colors.background,
+},
   bottomItem: { alignItems: 'center', flex: 1 },
   bottomItemIcon: { fontSize: 20 },
-  // Si tu tema no tiene typography.label, usa typography.caption
+  
   bottomItemLabel: { fontSize: typography.caption, color: colors.textLight },
 });
