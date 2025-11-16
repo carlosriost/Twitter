@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   SafeAreaView,
   View,
@@ -17,6 +17,15 @@ import { toggleLike, toggleRetweet } from '../Services/engagementService';
 import { profileStore } from '../Services/profileStore';
 import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import Tap from '../Components/Tap';
+import FollowButton from '../Components/FollowButton';
+
+// Follow service (suscripciones y follow/unfollow)
+import {
+  subscribeFollowers,
+  subscribeFollowing,
+  followUser,
+  unfollowUser,
+} from '../Services/followService';
 
 const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
 
@@ -31,8 +40,23 @@ export default function UserTweetsScreen({ route, navigation }) {
   // Perfil que se está viendo (si es otro usuario)
   const [viewedProfile, setViewedProfile] = useState(null);
 
+  // Follows del usuario mostrado (en tiempo real)
+  const [followersUids, setFollowersUids] = useState([]);
+  const [followingUids, setFollowingUids] = useState([]);
+
+  // A quién sigo YO (para botón Seguir/Siguiendo en perfil ajeno)
+  const [myFollowingSet, setMyFollowingSet] = useState(new Set());
+
+  // Busy del botón seguir (evitar taps dobles)
+  const [followBusy, setFollowBusy] = useState(false);
+
+  const followerCount = followersUids.length;
+  const followingCount = followingUids.length;
+
+  // Params de navegación
   const usernameParam = route.params?.username || null;
   const fullnameParam = route.params?.fullname || null;
+  const uidParam = route.params?.uid || null;
 
   // Username que se está mostrando en la pantalla
   const screenUsername =
@@ -43,6 +67,9 @@ export default function UserTweetsScreen({ route, navigation }) {
 
   // ¿Es mi propio perfil?
   const isOwnProfile = !usernameParam || profile?.username === usernameParam;
+
+  // UID del perfil mostrado (si es propio, el mío; si es ajeno, del usuario visto)
+  const viewedUid = isOwnProfile ? currentUserId : (viewedProfile?.uid || uidParam || null);
 
   // Nombre a mostrar en header y tarjeta
   const displayName =
@@ -65,12 +92,18 @@ export default function UserTweetsScreen({ route, navigation }) {
     };
   }, []);
 
-  // Si es perfil ajeno, traer su perfil (fullname/bio) por username
+  // Si es perfil ajeno, traer su perfil (fullname/bio/foto y uid) por username cuando no viene uid
   useEffect(() => {
     let cancelled = false;
     const fetchViewedProfile = async () => {
-      if (isOwnProfile || !screenUsername) {
-        setViewedProfile(null);
+      if (isOwnProfile || !screenUsername || uidParam) {
+        // Si es propio o ya tenemos uid por params, no necesitamos pedir más
+        if (uidParam && !isOwnProfile) {
+          // Si vino uid por params pero no tenemos datos, al menos inicializa con username/fullnameParam
+          setViewedProfile((prev) => prev || { uid: uidParam, username: screenUsername, fullname: fullnameParam || screenUsername });
+        } else if (isOwnProfile) {
+          setViewedProfile(null);
+        }
         return;
       }
       try {
@@ -82,7 +115,8 @@ export default function UserTweetsScreen({ route, navigation }) {
         const snap = await getDocs(q);
         if (!cancelled) {
           if (!snap.empty) {
-            setViewedProfile(snap.docs[0].data());
+            const docSnap = snap.docs[0];
+            setViewedProfile({ uid: docSnap.id, ...docSnap.data() });
           } else {
             setViewedProfile(null);
           }
@@ -96,9 +130,9 @@ export default function UserTweetsScreen({ route, navigation }) {
     return () => {
       cancelled = true;
     };
-  }, [isOwnProfile, screenUsername]);
+  }, [isOwnProfile, screenUsername, uidParam, fullnameParam]);
 
-  //tweets en tiempo real
+  // Tweets en tiempo real del usuario mostrado
   useEffect(() => {
     let unsubscribe;
     try {
@@ -118,6 +152,24 @@ export default function UserTweetsScreen({ route, navigation }) {
       if (unsubscribe) unsubscribe();
     };
   }, [screenUsername, currentUserId]);
+
+  // Suscripciones a seguidores/seguidos del usuario mostrado (para contadores)
+  useEffect(() => {
+    if (!viewedUid) return;
+    const unsub1 = subscribeFollowers(db, viewedUid, (uids) => setFollowersUids(uids));
+    const unsub2 = subscribeFollowing(db, viewedUid, (uids) => setFollowingUids(uids));
+    return () => {
+      unsub1 && unsub1();
+      unsub2 && unsub2();
+    };
+  }, [viewedUid]);
+
+  // Mi set de seguidos (para saber si muestro "Seguir" o "Siguiendo" en perfil ajeno)
+  useEffect(() => {
+    if (!currentUserId) return;
+    const unsub = subscribeFollowing(db, currentUserId, (uids) => setMyFollowingSet(new Set(uids)));
+    return () => unsub && unsub();
+  }, [currentUserId]);
 
   // Validar autenticación antes de interactuar
   const ensureAuthenticated = useCallback(() => {
@@ -154,14 +206,72 @@ export default function UserTweetsScreen({ route, navigation }) {
     [currentUserId, ensureAuthenticated]
   );
 
+  // Seguir/Dejar de seguir al usuario mostrado (en perfil ajeno)
+  const isFollowingViewed = useMemo(() => {
+    if (!viewedUid) return false;
+    return myFollowingSet.has(viewedUid);
+  }, [myFollowingSet, viewedUid]);
+
+  const handleToggleFollowViewed = async () => {
+    if (isOwnProfile) return;
+
+    if (!viewedUid) {
+      console.warn('No hay UID del perfil visto.');
+      return;
+    }
+
+    if (!currentUserId) {
+      Alert.alert('Autenticación requerida', 'Inicia sesión para seguir a usuarios.');
+      return;
+    }
+
+    try {
+      setFollowBusy(true);
+      if (isFollowingViewed) {
+        await unfollowUser(db, currentUserId, viewedUid);
+      } else {
+        await followUser(db, currentUserId, viewedUid);
+      }
+    } catch (e) {
+      console.warn('Error al cambiar follow del perfil visto:', e);
+    } finally {
+      setFollowBusy(false);
+    }
+  };
+
+  // Navegación a Followers / Following del perfil mostrado
+  const goToFollowers = () => {
+    if (!screenUsername) return;
+    navigation.push('Followers', {
+      username: screenUsername,
+      fullname: displayName,
+      uid: viewedUid || undefined,
+      initialTab: 'followers', // si unificas, abre directamente "Seguidores"
+    });
+  };
+
+  const goToFollowing = () => {
+    if (!screenUsername) return;
+    // En este proyecto tienes pantalla separada "Following"; si unificas, navega a 'Followers' con initialTab: 'following'
+    navigation.push('Following', {
+      username: screenUsername,
+      fullname: displayName,
+      uid: viewedUid || undefined,
+    });
+  };
+
   // Render de cada tweet
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
       {/*Avatar*/}
       <View style={styles.avatar}>
-        <Text style={styles.avatarInitial}>
-          {(item.fullname?.[0] || item.username?.[0] || 'U').toUpperCase()}
-        </Text>
+        {item.photoURL ? (
+          <Image source={{ uri: item.photoURL }} style={styles.avatarImage} />
+        ) : (
+          <Text style={styles.avatarInitial}>
+            {(item.fullname?.[0] || item.username?.[0] || 'U').toUpperCase()}
+          </Text>
+        )}
       </View>
 
       {/*Contenido del tweet*/}
@@ -234,6 +344,10 @@ export default function UserTweetsScreen({ route, navigation }) {
     );
   }
 
+  const profileAvatarSource = isOwnProfile
+    ? (profile?.photoURL ? { uri: profile.photoURL } : null)
+    : (viewedProfile?.photoURL ? { uri: viewedProfile.photoURL } : null);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
@@ -263,12 +377,16 @@ export default function UserTweetsScreen({ route, navigation }) {
             {/*Perfil*/}
             <View style={styles.profileCard}>
               <View style={styles.profileAvatar}>
-                <Text style={styles.profileAvatarInitial}>
-                  {(displayName?.[0] || screenUsername?.[0] || 'U').toUpperCase()}
-                </Text>
+                {profileAvatarSource ? (
+                  <Image source={profileAvatarSource} style={styles.profileAvatarImg} />
+                ) : (
+                  <Text style={styles.profileAvatarInitial}>
+                    {(displayName?.[0] || screenUsername?.[0] || 'U').toUpperCase()}
+                  </Text>
+                )}
               </View>
 
-              {isOwnProfile && (
+              {isOwnProfile ? (
                 <Tap
                   style={styles.editButton}
                   onPress={() => navigation.navigate('EditProfile')}
@@ -276,6 +394,15 @@ export default function UserTweetsScreen({ route, navigation }) {
                 >
                   <Text style={styles.editButtonText}>Edit profile</Text>
                 </Tap>
+              ) : (
+                <FollowButton
+                  following={isFollowingViewed}
+                  onPress={handleToggleFollowViewed}
+                  size="md"
+                  style={styles.editButton}
+                  loading={followBusy}
+                  disabled={followBusy}
+                />
               )}
 
               <Text style={styles.profileName}>{displayName}</Text>
@@ -287,23 +414,27 @@ export default function UserTweetsScreen({ route, navigation }) {
                 <Text style={styles.profileMeta}>No bio yet</Text>
               )}
 
+              {/* Datos extra (estáticos de ejemplo) */}
               <View style={styles.profileMetaRow}>
                 <Text style={styles.profileMeta}>📍 Medellín, Colombia</Text>
                 <Text style={styles.dot}>·</Text>
                 <Text style={styles.profileMeta}>Joined May 2024</Text>
               </View>
 
+              {/* Stats con navegación */}
               <View style={styles.profileStats}>
-                <Text style={styles.profileStat}>
-                  <Text style={styles.profileStatNumber}>180</Text> Following
-                </Text>
-                <Text style={styles.profileStat}>
-                  <Text style={styles.profileStatNumber}>3,245</Text> Followers
-                </Text>
+                <Tap style={styles.profileStat} onPress={goToFollowing}>
+                  <Text style={styles.profileStatNumber}>{followingCount}</Text>
+                  <Text> Following</Text>
+                </Tap>
+                <Tap style={styles.profileStat} onPress={goToFollowers}>
+                  <Text style={styles.profileStatNumber}>{followerCount}</Text>
+                  <Text> Followers</Text>
+                </Tap>
               </View>
             </View>
 
-            {/* Tabs */}
+            {/* Tabs (solo UI por ahora) */}
             <View style={styles.tabRow}>
               {profileTabs.map((tab, index) => (
                 <View
@@ -328,7 +459,6 @@ export default function UserTweetsScreen({ route, navigation }) {
     </SafeAreaView>
   );
 }
-
 
 function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   const content = (

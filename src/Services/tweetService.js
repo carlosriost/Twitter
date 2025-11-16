@@ -17,14 +17,10 @@ import {
   startAfter,
 } from 'firebase/firestore';
 
-/* ────────────────────────────────
- * 📁 Colección principal de tweets
- * ──────────────────────────────── */
+/*Colección principal de tweets*/
 const tweetsCollection = collection(db, 'tweets');
 
-/* ────────────────────────────────
- * 👤 Obtener perfil del usuario
- * ──────────────────────────────── */
+/*Obtener perfil del usuario*/
 export const getUserProfile = async (uid) => {
   if (!uid) {
     console.warn('⚠️ getUserProfile llamado sin UID válido');
@@ -41,9 +37,7 @@ export const getUserProfile = async (uid) => {
   }
 };
 
-/* ────────────────────────────────
- * 🐦 Crear tweet (con media y metadata)
- * ──────────────────────────────── */
+/*Crear tweet )*/
 export const postTweet = async (uid, username, fullname, text, media = []) => {
   if (!uid || !text?.trim()) {
     throw new Error('❌ Faltan datos obligatorios: uid o texto.');
@@ -72,16 +66,14 @@ export const postTweet = async (uid, username, fullname, text, media = []) => {
     };
 
     await addDoc(tweetsCollection, newTweet);
-    console.log('✅ Tweet publicado correctamente');
+    console.log('Tweet publicado correctamente');
   } catch (error) {
-    console.error('❌ Error al publicar el tweet:', error);
+    console.error('Error al publicar el tweet:', error);
     throw error;
   }
 };
 
-/* ────────────────────────────────
- * 💬 Crear respuesta
- * ──────────────────────────────── */
+/*Crear respuesta*/
 export const createReply = async (tweetId, { uid, username, fullname, text }) => {
   if (!tweetId || !uid || !text?.trim()) return;
   const profile = await getUserProfile(uid);
@@ -99,9 +91,7 @@ export const createReply = async (tweetId, { uid, username, fullname, text }) =>
   await updateDoc(tweetRef, { repliesCount: increment(1) });
 };
 
-/* ────────────────────────────────
- * 🧩 Mapeo de tweet (con estado del usuario actual)
- * ──────────────────────────────── */
+/*Mapeo de tweet (con estado del usuario actual)*/
 const mapTweetSnapshot = async (docSnap, currentUserId) => {
   const data = docSnap.data() || {};
   const tweet = {
@@ -129,23 +119,19 @@ const mapTweetSnapshot = async (docSnap, currentUserId) => {
       retweeted: retweetSnap.exists(),
     };
   } catch (err) {
-    console.warn('⚠️ Error al mapear acciones de tweet:', err);
+    console.warn('Error al mapear acciones de tweet:', err);
     return tweet;
   }
 };
 
-/* ────────────────────────────────
- * 📋 Obtener tweets (Home)
- * ──────────────────────────────── */
+/*Obtener tweets */
 export const getTweets = async (currentUserId) => {
   const q = query(tweetsCollection, orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
   return Promise.all(snapshot.docs.map((doc) => mapTweetSnapshot(doc, currentUserId)));
 };
 
-/* ────────────────────────────────
- * 👤 Tweets por usuario
- * ──────────────────────────────── */
+/*Tweets por usuario */
 export const getTweetsByUser = async (username, currentUserId) => {
   if (!username) return [];
   const q = query(
@@ -157,9 +143,7 @@ export const getTweetsByUser = async (username, currentUserId) => {
   return Promise.all(snapshot.docs.map((doc) => mapTweetSnapshot(doc, currentUserId)));
 };
 
-/* ────────────────────────────────
- * 📑 Paginación de tweets
- * ──────────────────────────────── */
+/*Paginación de tweets */
 export const getTweetsPaginated = async ({
   pageSize = 20,
   cursor,
@@ -183,9 +167,7 @@ export const getTweetsPaginated = async ({
   return { tweets, nextCursor };
 };
 
-/* ────────────────────────────────
- * 🔁 Subscripciones en tiempo real
- * ──────────────────────────────── */
+/*Subscripciones en tiempo real */
 const subscribeToQuery = ({ q, currentUserId, onUpdate }) =>
   onSnapshot(q, async (snapshot) => {
     try {
@@ -194,7 +176,7 @@ const subscribeToQuery = ({ q, currentUserId, onUpdate }) =>
       );
       onUpdate(tweets);
     } catch (error) {
-      console.error('❌ Error procesando tweets en tiempo real:', error);
+      console.error('Error procesando tweets en tiempo real:', error);
     }
   });
 
@@ -212,9 +194,7 @@ export const subscribeToTweetsByUser = ({ username, currentUserId, onUpdate }) =
   return subscribeToQuery({ q, currentUserId, onUpdate });
 };
 
-/* ────────────────────────────────
- * ❤️ / 🔁 Like y Retweet (con fix de transacciones)
- * ──────────────────────────────── */
+/*Like y Retweet */
 const toggleAction = async (tweetId, uid, subcollection, counterField) => {
   if (!tweetId || !uid) return;
 
@@ -233,7 +213,7 @@ const toggleAction = async (tweetId, uid, subcollection, counterField) => {
     const count = tweetSnap.data()?.[counterField] || 0;
     let newCount = count;
 
-    // 🔹 Aplica los cambios
+    // Aplica los cambios
     if (actionSnap.exists()) {
       t.delete(actionRef);
       newCount = Math.max(count - 1, 0);
@@ -242,7 +222,7 @@ const toggleAction = async (tweetId, uid, subcollection, counterField) => {
       newCount = count + 1;
     }
 
-    // 🔹 Actualiza el contador
+    // Actualiza el contador
     t.update(tweetRef, { [counterField]: newCount });
   });
 };
@@ -250,9 +230,7 @@ const toggleAction = async (tweetId, uid, subcollection, counterField) => {
 export const toggleLike = (tweetId, uid) => toggleAction(tweetId, uid, 'likes', 'likesCount');
 export const toggleRetweet = (tweetId, uid) => toggleAction(tweetId, uid, 'retweets', 'retweetsCount');
 
-/* ────────────────────────────────
- * 📤 Compartir tweet
- * ──────────────────────────────── */
+/*Compartir tweet */
 export const shareTweet = async (tweetId, uid) => {
   if (!tweetId || !uid) return;
   const tweetRef = doc(db, 'tweets', tweetId);
@@ -260,9 +238,7 @@ export const shareTweet = async (tweetId, uid) => {
   await updateDoc(tweetRef, { sharesCount: increment(1) });
 };
 
-/* ────────────────────────────────
- * 🔍 Estado de like / retweet
- * ──────────────────────────────── */
+/*Estado de like / retweet */
 export const getTweetActionState = async (tweetId, uid) => {
   if (!tweetId || !uid) return { liked: false, retweeted: false };
   const tweetRef = doc(db, 'tweets', tweetId);
@@ -273,9 +249,7 @@ export const getTweetActionState = async (tweetId, uid) => {
   return { liked: likeSnap.exists(), retweeted: retweetSnap.exists() };
 };
 
-/* ────────────────────────────────
- * 🔊 Escuchar tweet y respuestas
- * ──────────────────────────────── */
+/*Escuchar tweet y respuestas */
 export const listenToTweet = (tweetId, callback) => {
   const tweetRef = doc(db, 'tweets', tweetId);
   return onSnapshot(tweetRef, (snap) =>
@@ -295,16 +269,14 @@ export const listenToReplies = (tweetId, callback) => {
   });
 };
 
-/* ────────────────────────────────
- * 👥 Seguidores / Seguidos (corrigido)
- * ──────────────────────────────── */
+/*Seguidores / Seguidos (corrigido) */
 export const getFollowers = async (username) => {
   try {
     const q = query(collection(db, 'follows'), where('following', '==', username));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => doc.data().follower).filter(Boolean);
   } catch (error) {
-    console.error('❌ Error al obtener seguidores:', error);
+    console.error('Error al obtener seguidores:', error);
     return [];
   }
 };
@@ -315,14 +287,12 @@ export const getFollowing = async (username) => {
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => doc.data().following).filter(Boolean);
   } catch (error) {
-    console.error('❌ Error al obtener seguidos:', error);
+    console.error('Error al obtener seguidos:', error);
     return [];
   }
 };
 
-/* ────────────────────────────────
- * 📸 Tweets con media / likes / replies
- * ──────────────────────────────── */
+/*Tweets con media / likes / replies */
 export const getRepliesByUser = async (username) => {
   try {
     const tweets = await getTweetsByUser(username);

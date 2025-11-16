@@ -1,79 +1,172 @@
 // src/Styles/FollowingScreen.styles.js
 import { StyleSheet } from 'react-native';
-import { colors, spacing, radii, typography } from './theme';
+import { colors } from './theme';
 
 export default StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
+  // Layout base
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingTop: 35,
+  },
 
+  // Header superior
   header: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: 16,
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border || '#E5E7EB',
   },
-  backArrow: { fontSize: 26, color: colors.text },
-  headerTitle: { fontSize: typography.title, fontWeight: '700', color: colors.text },
-  headerSubtitle: { color: colors.textLight, fontSize: typography.caption },
+  backArrow: {
+    fontSize: 28,
+    color: colors.text,
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: colors.textLight,
+  },
 
+  // Segmento superior
   segment: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border || '#E5E7EB',
+    overflow: 'hidden',
   },
-  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm },
-  segmentActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
+  segmentItem: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentActive: {
+    backgroundColor: '#E2F7EC',
+  },
   segmentLabel: {
-    fontSize: typography.subtitle,
+    fontSize: 13,
     color: colors.textLight,
     fontWeight: '600',
   },
-  segmentLabelActive: { color: colors.text },
+  segmentLabelActive: {
+    color: colors.primary,
+  },
 
-  listContent: { paddingVertical: spacing.sm },
+  // Tarjeta de perfil (antes `local.*`)
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E7EB',
+  },
+  cardAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginRight: 12,
+    backgroundColor: '#fff',
+  },
+  avatarFallback: {
+    backgroundColor: '#E2F7EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  cardName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  cardUsername: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  bio: {
+    fontSize: 14,
+    color: '#111827',
+    marginTop: 8,
+  },
+  stats: {
+    flexDirection: 'row',
+    gap: 24,
+    marginTop: 12,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  statNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
 
+  // Lista y filas
+  listContent: {
+    paddingBottom: 16,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border || '#E5E7EB',
+    marginLeft: 68, // para que no atraviese el avatar
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.background,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    backgroundColor: '#fff',
     alignItems: 'center',
-    marginRight: spacing.md,
+    justifyContent: 'center',
   },
   avatarInitial: {
-    color: colors.text,
+    color: colors.primary,
     fontWeight: '700',
-    fontSize: typography.subtitle,
   },
-
-  info: { flex: 1 },
-  name: { fontWeight: '700', color: colors.text, fontSize: typography.body },
-  
+  info: {
+    flex: 1,
+  },
+  name: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
+  },
   username: {
+    fontSize: 12,
     color: colors.textLight,
-    fontSize: typography.caption,
-    marginTop: spacing.xs,
+    marginTop: 2,
   },
-  bio: { color: colors.textLight, fontSize: typography.caption, marginTop: spacing.xs },
-
-  followingButton: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-  },
-  followingText: { color: colors.text, fontWeight: '700' },
-
-  separator: { height: 1, backgroundColor: colors.border, marginLeft: spacing.md + 50 },
 });

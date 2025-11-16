@@ -99,7 +99,7 @@ export default function EditProfileScreen({ navigation }) {
       };
       await updateDoc(userRef, updates);
 
-      // Actualizar estado local + global (MEZCLA para no perder username u otros campos)
+      // Actualizar estado local + global 
       const current = profileStore.getProfile() || {};
       const refreshed = { ...current, uid: user.uid, ...updates };
       profileStore.setProfile(refreshed);
@@ -107,7 +107,7 @@ export default function EditProfileScreen({ navigation }) {
       setBio(refreshed.bio);
       setPhotoURL(refreshed.photoURL);
 
-      Alert.alert('✅ Perfil actualizado', 'Los cambios se guardaron correctamente.');
+      Alert.alert('Perfil actualizado', 'Los cambios se guardaron correctamente.');
       navigation.goBack();
     } catch (error) {
       console.error('Error al guardar perfil:', error);

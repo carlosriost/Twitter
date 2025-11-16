@@ -111,23 +111,73 @@ export default function HomeScreen({ navigation, route }) {
     [currentUserId, ensureAuthenticated]
   );
 
-  /* Accesos rápidos: pasar username/fullname cuando aplica */
+  /* Accesos rápidos: pasar username/fullname/uid */
   const quickActions = useMemo(
     () => [
       { id: 'tweet', label: 'Compose', onPress: () => navigation.navigate('Tweet') },
-      { id: 'followers', label: 'Followers', onPress: () => navigation.navigate('Followers', { username: userUsername }) },
-      { id: 'following', label: 'Following', onPress: () => navigation.navigate('Following', { username: userUsername }) },
-      { id: 'userTweets', label: 'Profile', onPress: () => navigation.navigate('UserTweets', { username: userUsername, fullname: displayName }) },
+
+      // Abrir Seguidores del usuario actual
+      {
+        id: 'followers',
+        label: 'Followers',
+        onPress: () =>
+          navigation.navigate('Followers', {
+            username: userUsername,
+            fullname: displayName,
+            uid: currentUserId || undefined,
+          }),
+      },
+
+      // Abrir Seguidos del usuario actual
+      {
+        id: 'following',
+        label: 'Following',
+        onPress: () =>
+          navigation.navigate('Following', {
+            username: userUsername,
+            fullname: displayName,
+            uid: currentUserId || undefined,
+          }),
+      },
+
+      // Abrir perfil del usuario actual
+      {
+        id: 'userTweets',
+        label: 'Profile',
+        onPress: () =>
+          navigation.navigate('UserTweets', {
+            username: userUsername,
+            fullname: displayName,
+            uid: currentUserId || undefined,
+          }),
+      },
     ],
-    [navigation, userUsername, displayName]
+    [navigation, userUsername, displayName, currentUserId]
   );
+
+  // Abrir perfil del autor del tweet
+  const openUserProfile = useCallback((tweet) => {
+    if (!tweet) return;
+    const username = tweet.username || 'user';
+    const fullname = tweet.fullname || username;
+    // intenta varias claves comunes por si tu servicio ya incluye el uid del autor
+    const uid =
+      tweet.authorUid ||
+      tweet.userUid ||
+      tweet.userId ||
+      tweet.uid ||
+      undefined;
+
+    navigation.push('UserTweets', { username, fullname, uid });
+  }, [navigation]);
 
   const listPaddingBottom = 56 + 24;
 
   /* Render de cada tweet */
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
-      <View style={styles.avatar}>
+      {/* Avatar que navega al perfil */}
+      <Tap style={styles.avatar} onPress={() => openUserProfile(item)}>
         {item.photoURL ? (
           <Image source={{ uri: item.photoURL }} style={styles.avatarImage} />
         ) : (
@@ -135,15 +185,16 @@ export default function HomeScreen({ navigation, route }) {
             {(item.fullname?.[0] || item.username?.[0] || 'U').toUpperCase()}
           </Text>
         )}
-      </View>
+      </Tap>
 
       <View style={styles.tweetBody}>
-        <View style={styles.tweetHeader}>
+        {/* Cabecera (nombre/@) que navega al perfil */}
+        <Tap style={styles.tweetHeader} onPress={() => openUserProfile(item)}>
           <View style={styles.headerText}>
             <Text style={styles.tweetName}>{item.fullname || item.username || 'User'}</Text>
             <Text style={styles.tweetMeta}>@{item.username || 'user'}</Text>
           </View>
-        </View>
+        </Tap>
 
         {!!(item.text || item.content) && (
           <Text style={styles.tweetContent}>{item.text || item.content}</Text>
@@ -331,7 +382,6 @@ export default function HomeScreen({ navigation, route }) {
     </SafeAreaView>
   );
 }
-
 
 function ActionStat({ icon, value, highlight = false, onPress, disabled }) {
   const content = (

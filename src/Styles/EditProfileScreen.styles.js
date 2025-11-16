@@ -4,6 +4,7 @@ import { colors, spacing, radii, typography } from './theme';
 
 export default StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
+  
 
   header: {
     flexDirection: 'row',

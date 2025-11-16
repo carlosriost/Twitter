@@ -13,17 +13,13 @@ import {
 } from 'firebase/firestore';
 import { db } from '../Config/firebaseConfig';
 
-/* ────────────────────────────────
- * 📁 Referencias base
- * ──────────────────────────────── */
+/*Referencias base*/
 const getTweetRef = (tweetId) => doc(db, 'tweets', tweetId);
 const likesCollection = (tweetId) => collection(db, 'tweets', tweetId, 'likes');
 const retweetsCollection = (tweetId) => collection(db, 'tweets', tweetId, 'retweets');
 const repliesCollection = (tweetId) => collection(db, 'tweets', tweetId, 'replies');
 
-/* ────────────────────────────────
- * 🔢 Incremento seguro de campos
- * ──────────────────────────────── */
+/*Incremento seguro de campos */
 const incrementField = async (transaction, tweetRef, field, amount) => {
   const docSnap = await transaction.get(tweetRef);
   if (!docSnap.exists()) {
@@ -33,9 +29,7 @@ const incrementField = async (transaction, tweetRef, field, amount) => {
   transaction.update(tweetRef, { [field]: Math.max(current + amount, 0) });
 };
 
-/* ────────────────────────────────
- * ❤️ Toggle Like
- * ──────────────────────────────── */
+/*Toggle Like*/
 export const toggleLike = async (tweetId, userId) => {
   if (!userId) throw new Error('User ID is required to like a tweet');
 
@@ -58,9 +52,7 @@ export const toggleLike = async (tweetId, userId) => {
   });
 };
 
-/* ────────────────────────────────
- * 🔁 Toggle Retweet
- * ──────────────────────────────── */
+/*Toggle Retweet*/
 export const toggleRetweet = async (tweetId, userId) => {
   if (!userId) throw new Error('User ID is required to retweet');
 
@@ -83,10 +75,6 @@ export const toggleRetweet = async (tweetId, userId) => {
   });
 };
 
-/* ────────────────────────────────
- * 💬 Añadir respuesta (reply)
- * Soporta media[] e incluye photoURL
- * ──────────────────────────────── */
 export const addReply = async (tweetId, { userId, username, fullname, text, photoURL = null, media = [] }) => {
   if (!userId) throw new Error('User ID is required to reply');
   if (!text?.trim() && media.length === 0) throw new Error('Reply text or media is required');
@@ -117,9 +105,7 @@ export const addReply = async (tweetId, { userId, username, fullname, text, phot
   return { id: replySnap.id, ...replySnap.data() };
 };
 
-/* ────────────────────────────────
- * 📜 Obtener respuestas (paginadas)
- * ──────────────────────────────── */
+/*Obtener respuestas*/
 export const getRepliesPaginated = async (tweetId, { pageSize = 20, cursor } = {}) => {
   const repliesRef = repliesCollection(tweetId);
   const constraints = [orderBy('createdAt', 'desc'), limit(pageSize)];

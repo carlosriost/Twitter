@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   SafeAreaView,
   View,
@@ -7,6 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
   StatusBar,
+  StyleSheet,
 } from 'react-native';
 import { colors } from '../Styles/theme';
 import { auth, db } from '../Config/firebaseConfig';
@@ -24,6 +25,12 @@ import { profileStore } from '../Services/profileStore';
 import { useNavigation } from '@react-navigation/native';
 import Tap from '../Components/Tap';
 
+// Suscripciones a seguidores/seguidos
+import {
+  subscribeFollowers,
+  subscribeFollowing,
+} from '../Services/followService';
+
 const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
 
 export default function ProfileScreen() {
@@ -36,6 +43,13 @@ export default function ProfileScreen() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
+
+  // Follows del usuario (recuento en tiempo real)
+  const [followersUids, setFollowersUids] = useState([]);
+  const [followingUids, setFollowingUids] = useState([]);
+
+  const followerCount = followersUids.length;
+  const followingCount = followingUids.length;
 
   //perfil y tweets en tiempo real
   useEffect(() => {
@@ -124,6 +138,17 @@ export default function ProfileScreen() {
     };
   }, [navigation, user?.uid, userData?.username]);
 
+  // Suscripción a seguidores/seguidos (para contadores)
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub1 = subscribeFollowers(db, user.uid, (uids) => setFollowersUids(uids));
+    const unsub2 = subscribeFollowing(db, user.uid, (uids) => setFollowingUids(uids));
+    return () => {
+      unsub1 && unsub1();
+      unsub2 && unsub2();
+    };
+  }, [user?.uid]);
+
   //Tabs simuladas
   const handleSelectTab = (tab) => {
     setActiveTab(tab);
@@ -132,6 +157,27 @@ export default function ProfileScreen() {
       setTweets([]);
       setTimeout(() => setTabLoading(false), 500);
     }
+  };
+
+  // Navegaciones a Followers/Following con params completos
+  const goToFollowers = () => {
+    if (!userData) return;
+    navigation.navigate('Followers', {
+      username: userData.username,
+      fullname: userData.fullname,
+      uid: user?.uid,
+      initialTab: 'followers', // si usas pantalla unificada, útil; si mantienes dos pantallas, no pasa nada
+    });
+  };
+
+  const goToFollowing = () => {
+    if (!userData) return;
+    navigation.navigate('Following', {
+      username: userData.username,
+      fullname: userData.fullname,
+      uid: user?.uid,
+      // si usas pantalla unificada podrías navegar a 'Followers' con initialTab: 'following'
+    });
   };
 
   //Render de cada tweet
@@ -230,6 +276,18 @@ export default function ProfileScreen() {
         ) : (
           <Text style={styles.profileBioMuted}>No bio yet</Text>
         )}
+
+        {/* Stats: Siguiendo / Seguidores */}
+        <View style={local.statsRow}>
+          <Tap style={local.statTap} onPress={goToFollowing}>
+            <Text style={local.statNumber}>{followingCount}</Text>
+            <Text style={local.statLabel}> Siguiendo</Text>
+          </Tap>
+          <Tap style={local.statTap} onPress={goToFollowers}>
+            <Text style={local.statNumber}>{followerCount}</Text>
+            <Text style={local.statLabel}> Seguidores</Text>
+          </Tap>
+        </View>
       </View>
 
       {/*Tabs*/}
@@ -271,4 +329,6 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
+
+
 

@@ -3,7 +3,7 @@ import { db } from '../Config/firebaseConfig';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 /**
- * 🔹 Crear perfil del usuario en Firestore (solo se usa al registrarse)
+ * Crear perfil del usuario en Firestore (solo se usa al registrarse)
  * @param {string} uid - ID del usuario autenticado
  * @param {string} username - Nombre de usuario (@)
  * @param {string} fullname - Nombre completo
@@ -20,15 +20,15 @@ export const createUserProfile = async (uid, username, fullname, email) => {
       photoURL: '',
       createdAt: new Date(),
     });
-    console.log("✅ Perfil creado exitosamente en Firestore");
+    console.log("Perfil creado exitosamente en Firestore");
   } catch (error) {
-    console.error("❌ Error al crear perfil:", error.message);
+    console.error("Error al crear perfil:", error.message);
     throw error;
   }
 };
 
 /**
- * 🔹 Obtener el perfil del usuario desde Firestore
+ * Obtener el perfil del usuario desde Firestore
  * @param {string} uid - ID del usuario autenticado
  */
 export const getUserProfile = async (uid) => {
@@ -36,20 +36,20 @@ export const getUserProfile = async (uid) => {
     const ref = doc(db, 'users', uid);
     const snapshot = await getDoc(ref);
     if (snapshot.exists()) {
-      console.log("✅ Perfil obtenido:", snapshot.data());
+      console.log("Perfil obtenido:", snapshot.data());
       return snapshot.data();
     } else {
-      console.log("⚠️ No existe el perfil del usuario.");
+      console.log("No existe el perfil del usuario.");
       return null;
     }
   } catch (error) {
-    console.error("❌ Error al obtener el perfil:", error.message);
+    console.error("Error al obtener el perfil:", error.message);
     throw error;
   }
 };
 
 /**
- * 🔹 Actualizar perfil del usuario (nombre, bio, foto, etc.)
+ * Actualizar perfil del usuario (nombre, bio, foto, etc.)
  * @param {string} uid - ID del usuario
  * @param {object} data - Campos a actualizar (ej: { fullname, bio, photoURL })
  */
@@ -57,9 +57,9 @@ export const updateUserProfile = async (uid, data) => {
   try {
     const ref = doc(db, 'users', uid);
     await updateDoc(ref, data);
-    console.log("✅ Perfil actualizado correctamente");
+    console.log("Perfil actualizado correctamente");
   } catch (error) {
-    console.error("❌ Error al actualizar perfil:", error.message);
+    console.error("Error al actualizar perfil:", error.message);
     throw error;
   }
 };

@@ -23,10 +23,10 @@ export const registerUser = async (email, password, username, fullname) => {
       following: [],
       createdAt: new Date()
     });
-    console.log("✅ Usuario registrado y perfil creado:", cred.user.uid);
+    console.log("Usuario registrado y perfil creado:", cred.user.uid);
     return cred.user;
   } catch (error) {
-    console.error("❌ Error en registerUser:", error.message);
+    console.error("Error en registerUser:", error.message);
     throw error;
   }
 };
@@ -37,10 +37,10 @@ export const registerUser = async (email, password, username, fullname) => {
 export const loginUser = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    console.log("✅ Sesión iniciada:", userCredential.user.uid);
+    console.log("Sesión iniciada:", userCredential.user.uid);
     return userCredential.user;
   } catch (error) {
-    console.error("❌ Error en loginUser:", error.message);
+    console.error("Error en loginUser:", error.message);
     throw error;
   }
 };
@@ -52,9 +52,9 @@ export const logoutUser = async () => {
   try {
     await signOut(auth);
     profileStore.clearProfile();
-    console.log("🚪 Sesión cerrada correctamente");
+    console.log("Sesión cerrada correctamente");
   } catch (error) {
-    console.error("❌ Error cerrando sesión:", error.message);
+    console.error("Error cerrando sesión:", error.message);
     throw error;
   }
 };
