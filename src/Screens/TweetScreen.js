@@ -8,9 +8,12 @@ import {
   StatusBar,
   ActivityIndicator,
   ScrollView,
+  Image,
+  Alert,
 } from 'react-native';
 import { colors } from '../Styles/theme';
 import { auth } from '../Config/firebaseConfig';
+import { pickImageAndUpload, calcAspectRatio } from '../Services/storageService';
 import {
   postTweet,
   createReply,
@@ -22,6 +25,8 @@ import Tap from '../Components/Tap';
 
 export default function TweetScreen({ navigation, route }) {
   const [tweet, setTweet] = useState('');
+  const [media, setMedia] = useState([]); // [{ url, ratio }]
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentTweet, setCurrentTweet] = useState(route.params?.tweet || null);
   const [replies, setReplies] = useState([]);
@@ -82,16 +87,39 @@ export default function TweetScreen({ navigation, route }) {
           text: tweet.trim(),
         });
       } else {
-        await postTweet(uid, username, fullname, tweet.trim());
+        const mediaPayload = media.map((m) => ({ url: m.url, ratio: m.ratio }));
+        await postTweet(uid, username, fullname, tweet.trim(), mediaPayload);
       }
 
       setTweet('');
+      setMedia([]);
       navigation.goBack();
     } catch (error) {
       console.error('❌ Error al publicar el tweet:', error);
       alert('Error al publicar el tweet 😢');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddImage = async () => {
+    if (uploadingMedia) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      Alert.alert('Sesión requerida', 'Inicia sesión para subir imágenes.');
+      return;
+    }
+    try {
+      setUploadingMedia(true);
+      const res = await pickImageAndUpload({ folder: 'tweetMedia', userId: uid, prefix: 'tweet' });
+      if (!res) return; // cancelado
+      const ratio = calcAspectRatio(res.width, res.height);
+      setMedia((prev) => [...prev, { url: res.downloadURL, ratio }]);
+    } catch (e) {
+      console.error('Error subiendo imagen del tweet', e);
+      Alert.alert('Error', 'No se pudo subir la imagen.');
+    } finally {
+      setUploadingMedia(false);
     }
   };
 
@@ -174,13 +202,36 @@ export default function TweetScreen({ navigation, route }) {
             />
 
             {/* Toolbar */}
+            {/* Media preview */}
+            {media.length > 0 && (
+              <View style={styles.mediaPreviewContainer}>
+                {media.map((m, idx) => (
+                  <View key={m.url} style={styles.mediaItemWrapper}>
+                    <Image
+                      source={{ uri: m.url }}
+                      style={[styles.mediaItem, { aspectRatio: m.ratio }]}
+                      resizeMode="cover"
+                    />
+                    <Tap
+                      style={styles.removeMediaButton}
+                      onPress={() =>
+                        setMedia((prev) => prev.filter((x) => x.url !== m.url))
+                      }
+                    >
+                      <Text style={styles.removeMediaText}>×</Text>
+                    </Tap>
+                  </View>
+                ))}
+              </View>
+            )}
+
             <View style={styles.toolbar}>
               <View style={styles.iconRow}>
-                {['🖼️', '📍', '😊'].map((icon) => (
-                  <Text key={icon} style={styles.icon}>
-                    {icon}
-                  </Text>
-                ))}
+                <Tap onPress={handleAddImage} disabled={uploadingMedia}>
+                  <Text style={styles.icon}>{uploadingMedia ? '⏳' : '🖼️'}</Text>
+                </Tap>
+                <Text style={styles.icon}>📍</Text>
+                <Text style={styles.icon}>😊</Text>
               </View>
               <Text
                 style={[

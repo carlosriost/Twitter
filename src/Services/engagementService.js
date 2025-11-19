@@ -19,14 +19,10 @@ const likesCollection = (tweetId) => collection(db, 'tweets', tweetId, 'likes');
 const retweetsCollection = (tweetId) => collection(db, 'tweets', tweetId, 'retweets');
 const repliesCollection = (tweetId) => collection(db, 'tweets', tweetId, 'replies');
 
-/*Incremento seguro de campos */
-const incrementField = async (transaction, tweetRef, field, amount) => {
-  const docSnap = await transaction.get(tweetRef);
-  if (!docSnap.exists()) {
-    throw new Error('Tweet not found');
-  }
-  const current = docSnap.data()?.[field] ?? 0;
-  transaction.update(tweetRef, { [field]: Math.max(current + amount, 0) });
+// Ajuste de contador sin lecturas tardías: siempre calcula a partir de un snapshot leído antes
+const applyCounterUpdate = (transaction, tweetRef, field, baseValue, amount) => {
+  const next = Math.max(Number(baseValue ?? 0) + amount, 0);
+  transaction.update(tweetRef, { [field]: next });
 };
 
 /*Toggle Like*/
@@ -37,18 +33,25 @@ export const toggleLike = async (tweetId, userId) => {
   const likeRef = doc(likesCollection(tweetId), userId);
 
   return runTransaction(db, async (transaction) => {
-    const likeSnap = await transaction.get(likeRef);
+    // Todas las lecturas primero
+    const [tweetSnap, likeSnap] = await Promise.all([
+      transaction.get(tweetRef),
+      transaction.get(likeRef),
+    ]);
+
+    if (!tweetSnap.exists()) throw new Error('Tweet not found');
+    const current = Number(tweetSnap.data()?.likesCount ?? 0);
     const isLiked = likeSnap.exists();
 
     if (isLiked) {
       transaction.delete(likeRef);
-      await incrementField(transaction, tweetRef, 'likesCount', -1);
+      applyCounterUpdate(transaction, tweetRef, 'likesCount', current, -1);
       return false;
+    } else {
+      transaction.set(likeRef, { userId, createdAt: serverTimestamp() });
+      applyCounterUpdate(transaction, tweetRef, 'likesCount', current, 1);
+      return true;
     }
-
-    transaction.set(likeRef, { userId, createdAt: serverTimestamp() });
-    await incrementField(transaction, tweetRef, 'likesCount', 1);
-    return true;
   });
 };
 
@@ -60,18 +63,25 @@ export const toggleRetweet = async (tweetId, userId) => {
   const retweetRef = doc(retweetsCollection(tweetId), userId);
 
   return runTransaction(db, async (transaction) => {
-    const retweetSnap = await transaction.get(retweetRef);
+    // Lecturas antes de escrituras
+    const [tweetSnap, retweetSnap] = await Promise.all([
+      transaction.get(tweetRef),
+      transaction.get(retweetRef),
+    ]);
+
+    if (!tweetSnap.exists()) throw new Error('Tweet not found');
+    const current = Number(tweetSnap.data()?.retweetsCount ?? 0);
     const isRetweeted = retweetSnap.exists();
 
     if (isRetweeted) {
       transaction.delete(retweetRef);
-      await incrementField(transaction, tweetRef, 'retweetsCount', -1);
+      applyCounterUpdate(transaction, tweetRef, 'retweetsCount', current, -1);
       return false;
+    } else {
+      transaction.set(retweetRef, { userId, createdAt: serverTimestamp() });
+      applyCounterUpdate(transaction, tweetRef, 'retweetsCount', current, 1);
+      return true;
     }
-
-    transaction.set(retweetRef, { userId, createdAt: serverTimestamp() });
-    await incrementField(transaction, tweetRef, 'retweetsCount', 1);
-    return true;
   });
 };
 

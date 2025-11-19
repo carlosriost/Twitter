@@ -11,12 +11,13 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { launchImageLibrary } from 'react-native-image-picker';
+// Usamos el servicio centralizado en lugar de acceder directo al picker aquí
+import { pickImageAndUpload } from '../Services/storageService';
 import { colors } from '../Styles/theme';
 import styles from '../Styles/EditProfileScreen.styles';
-import { auth, db, storage } from '../Config/firebaseConfig';
+import { auth, db } from '../Config/firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+// Ya no usamos uploadBytes/getDownloadURL directamente aquí
 import { profileStore } from '../Services/profileStore';
 import Tap from '../Components/Tap';
 
@@ -54,19 +55,17 @@ export default function EditProfileScreen({ navigation }) {
     loadUserData();
   }, [user?.uid]);
 
-  // Escoger nueva foto
+  // Escoger nueva foto y subirla inmediatamente a Storage
   const handlePickImage = async () => {
-    const options = { mediaType: 'photo', quality: 0.8, includeBase64: false };
-    launchImageLibrary(options, (response) => {
-      if (response.didCancel) return;
-      if (response.errorCode) {
-        console.log('Error:', response.errorMessage);
-        Alert.alert('Error', 'No se pudo acceder a la galería.');
-        return;
-      }
-      const uri = response.assets?.[0]?.uri;
-      if (uri) setPhotoURL(uri);
-    });
+    if (!user?.uid) return;
+    try {
+      const result = await pickImageAndUpload({ folder: 'profilePictures', userId: user.uid, prefix: 'avatar' });
+      if (!result) return; // cancelado
+      setPhotoURL(result.downloadURL); // Guardamos URL directa
+    } catch (e) {
+      console.error('Error seleccionando/subiendo imagen', e);
+      Alert.alert('Error', 'No se pudo subir la imagen seleccionada.');
+    }
   };
 
   // Guardar cambios
@@ -78,23 +77,15 @@ export default function EditProfileScreen({ navigation }) {
 
     setSaving(true);
     try {
-      let newPhotoURL = photoURL;
+      // photoURL ya es remota si se escogió con el picker (se sube inmediatamente)
+      const newPhotoURL = photoURL || '';
 
-      // Subir imagen si es nueva
-      if (photoURL && !photoURL.startsWith('https://')) {
-        const response = await fetch(photoURL);
-        const blob = await response.blob();
-        const storageRef = ref(storage, `profilePictures/${user.uid}.jpg`);
-        await uploadBytes(storageRef, blob);
-        newPhotoURL = await getDownloadURL(storageRef);
-      }
-
-      // Actualizar Firestore
+      // Actualizar Firestore solamente (evitamos doble subida)
       const userRef = doc(db, 'users', user.uid);
       const updates = {
         fullname: fullname.trim(),
         bio: bio.trim(),
-        photoURL: newPhotoURL || '',
+        photoURL: newPhotoURL,
         updatedAt: new Date(),
       };
       await updateDoc(userRef, updates);

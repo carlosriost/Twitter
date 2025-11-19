@@ -7,7 +7,6 @@ import {
   FlatList,
   ActivityIndicator,
   StatusBar,
-  StyleSheet,
 } from 'react-native';
 import { colors } from '../Styles/theme';
 import { auth, db } from '../Config/firebaseConfig';
@@ -43,6 +42,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
+  // Se eliminó funcionalidad de zoom / onPress en imágenes
 
   // Follows del usuario (recuento en tiempo real)
   const [followersUids, setFollowersUids] = useState([]);
@@ -180,32 +180,65 @@ export default function ProfileScreen() {
     });
   };
 
-  //Render de cada tweet
-  const renderTweet = ({ item }) => (
-    <Tap
-      style={styles.tweetRow}
-      onPress={() =>
-        navigation.navigate('TweetDetail', { tweetId: item.id, tweet: item })
-      }
-    >
-      <View style={styles.avatarSmall}>
-        {userData?.photoURL ? (
-          <Image source={{ uri: userData.photoURL }} style={styles.avatarImg} />
-        ) : (
-          <Text style={styles.avatarInitial}>
-            {(userData?.fullname?.[0] || '?').toUpperCase()}
-          </Text>
-        )}
+  //Render de cada tweet con media (sin interacción)
+  const renderTweet = ({ item }) => {
+    const mediaArr = Array.isArray(item.media) ? item.media : [];
+    return (
+      <View style={styles.tweetRow}>
+        <View style={styles.avatarSmall}>
+          {userData?.photoURL ? (
+            <Image source={{ uri: userData.photoURL }} style={styles.avatarImg} />
+          ) : (
+            <Text style={styles.avatarInitial}>
+              {(userData?.fullname?.[0] || '?').toUpperCase()}
+            </Text>
+          )}
+        </View>
+        <View style={styles.tweetBody}>
+          <View style={styles.tweetHeader}>
+            <Text style={styles.tweetName}>{userData?.fullname}</Text>
+            <Text style={styles.tweetMeta}> @{userData?.username}</Text>
+          </View>
+          {!!(item.content || item.text) && (
+            <Text style={styles.tweetContent}>{item.content || item.text}</Text>
+          )}
+          {mediaArr.length > 0 && (
+            <View
+              style={[
+                styles.mediaGrid,
+                mediaArr.length === 1 && styles.mediaGridSingle,
+              ]}
+            >
+              {mediaArr.map((m, idx) => {
+                const rawUrl = m?.url || m?.downloadURL || m?.uri;
+                const key = `${rawUrl || 'blank'}-${idx}`;
+                const styleRef = mediaArr.length === 1 ? styles.mediaImageSingle : styles.mediaImageMultiple;
+                if (!rawUrl) {
+                  return (
+                    <View key={key} style={[styleRef, { alignItems: 'center', justifyContent: 'center' }]}> 
+                      <Text style={{ color: colors.textLight, fontSize: 12 }}>Sin URL</Text>
+                    </View>
+                  );
+                }
+                const safeUrl = typeof rawUrl === 'string' ? rawUrl.trim() : rawUrl;
+                return (
+                  <Image
+                    key={key}
+                    source={{ uri: safeUrl }}
+                    style={styleRef}
+                    resizeMode="cover"
+                    onLoadStart={() => console.log('[Media] loadStart', safeUrl)}
+                    onLoad={() => console.log('[Media] load OK', safeUrl)}
+                    onError={(e) => console.warn('Perfil media error', safeUrl, e.nativeEvent)}
+                  />
+                );
+              })}
+            </View>
+          )}
+        </View>
       </View>
-      <View style={styles.tweetBody}>
-        <Text style={styles.tweetHeader}>
-          <Text style={styles.tweetName}>{userData?.fullname}</Text>{' '}
-          <Text style={styles.tweetMeta}>@{userData?.username}</Text>
-        </Text>
-        <Text style={styles.tweetContent}>{item.content || item.text}</Text>
-      </View>
-    </Tap>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -278,14 +311,14 @@ export default function ProfileScreen() {
         )}
 
         {/* Stats: Siguiendo / Seguidores */}
-        <View style={local.statsRow}>
-          <Tap style={local.statTap} onPress={goToFollowing}>
-            <Text style={local.statNumber}>{followingCount}</Text>
-            <Text style={local.statLabel}> Siguiendo</Text>
+        <View style={styles.profileStatsRow}>
+          <Tap style={styles.profileStatTap} onPress={goToFollowing}>
+            <Text style={styles.profileStatNumber}>{followingCount}</Text>
+            <Text style={styles.profileStatLabel}> Siguiendo</Text>
           </Tap>
-          <Tap style={local.statTap} onPress={goToFollowers}>
-            <Text style={local.statNumber}>{followerCount}</Text>
-            <Text style={local.statLabel}> Seguidores</Text>
+          <Tap style={styles.profileStatTap} onPress={goToFollowers}>
+            <Text style={styles.profileStatNumber}>{followerCount}</Text>
+            <Text style={styles.profileStatLabel}> Seguidores</Text>
           </Tap>
         </View>
       </View>
@@ -326,6 +359,8 @@ export default function ProfileScreen() {
           }
         />
       )}
+
+      {/* Modal de zoom eliminado a petición del usuario */}
     </SafeAreaView>
   );
 }

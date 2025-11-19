@@ -98,6 +98,19 @@ export default StyleSheet.create({
   tweetMeta: { color: colors.textLight, fontSize: typography.caption },
   tweetContent: { color: colors.text, fontSize: typography.body, lineHeight: 22 },
 
+  /* Media en tweets del perfil */
+  mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
+  mediaGridSingle: { width: '100%', borderRadius: radii.lg, overflow: 'hidden' },
+  mediaImageSingle: { width: '100%', aspectRatio: 16 / 9, borderRadius: radii.lg, minHeight: 180, backgroundColor: colors.surface },
+  mediaImageMultiple: { flexBasis: '48%', flexGrow: 1, aspectRatio: 1, minHeight: 140, borderRadius: radii.md, backgroundColor: colors.surface },
+
+  /* Stats row (seguidores / siguiendo) */
+  profileStatsRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
+  profileStatTap: { flexDirection: 'row', alignItems: 'center' },
+  profileStatNumber: { fontWeight: '700', color: colors.text },
+  profileStatLabel: { color: colors.textLight },
+
+
   emptyState: { paddingVertical: spacing.lg, alignItems: 'center' },
   emptyText: { color: colors.textLight, fontSize: typography.caption },
 });

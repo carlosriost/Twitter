@@ -15,7 +15,8 @@ import Tap from '../Components/Tap';
 import styles from '../Styles/HomeScreen.styles';
 import { colors } from '../Styles/theme';
 import { auth } from '../Config/firebaseConfig';
-import { subscribeToTweets, toggleLike, toggleRetweet } from '../Services/tweetService';
+import { subscribeToTweets } from '../Services/tweetService';
+import { toggleLike, toggleRetweet } from '../Services/engagementService';
 import { profileStore } from '../Services/profileStore';
 
 /*Íconos inferiores*/
@@ -208,18 +209,29 @@ export default function HomeScreen({ navigation, route }) {
               item.media.length === 1 && styles.mediaGridSingle,
             ]}
           >
-            {item.media.map((mediaItem, index) => (
-              <Image
-                key={`${mediaItem.url}-${index}`}
-                source={{ uri: mediaItem.url }}
-                style={[
-                  item.media.length === 1
-                    ? styles.mediaImageSingle
-                    : styles.mediaImageMultiple,
-                ]}
-                resizeMode="cover"
-              />
-            ))}
+               {item.media.map((mediaItem, index) => {
+                 const rawUrl = mediaItem?.url || mediaItem?.downloadURL || mediaItem?.uri;
+                 const key = `${rawUrl || 'blank'}-${index}`;
+                 const styleRef = item.media.length === 1 ? styles.mediaImageSingle : styles.mediaImageMultiple;
+                 if (!rawUrl) {
+                   return (
+                     <View key={key} style={[styleRef, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }]}>
+                       <Text style={{ color: '#9CA3AF', fontSize: 12 }}>Sin URL</Text>
+                     </View>
+                   );
+                 }
+                 return (
+                   <Image
+                     key={key}
+                     source={{ uri: rawUrl }}
+                     style={styleRef}
+                     resizeMode="cover"
+                     onError={(e) => console.warn('Imagen feed error', rawUrl, e.nativeEvent)}
+                     onLoadStart={() => console.log('Imagen feed cargando', rawUrl)}
+                     onLoadEnd={() => console.log('Imagen feed OK', rawUrl)}
+                   />
+                 );
+               })}
           </View>
         )}
 
@@ -262,15 +274,6 @@ export default function HomeScreen({ navigation, route }) {
             <>
               {/* Barra superior */}
               <View style={styles.topBar}>
-                <Tap style={styles.profileButton} onPress={() => navigation.navigate('Profile')}>
-                  {profile?.photoURL ? (
-                    <Image source={{ uri: profile.photoURL }} style={styles.avatarImage} />
-                  ) : (
-                    <Text style={styles.profileInitial}>
-                      {(displayName?.[0] || userUsername?.[0] || 'U').toUpperCase()}
-                    </Text>
-                  )}
-                </Tap>
                 <Text style={styles.brandMark}>∃ꊼ∃ꊼ</Text>
                 <Text style={styles.sparkle}>✨</Text>
               </View>

@@ -139,13 +139,14 @@ export default StyleSheet.create({
 
   mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xs },
   mediaGridSingle: { width: '100%', borderRadius: radii.lg, overflow: 'hidden' },
-  mediaImageSingle: { width: '100%', aspectRatio: 16 / 9, borderRadius: radii.lg },
+  mediaImageSingle: { width: '100%', aspectRatio: 16 / 9, borderRadius: radii.lg, minHeight: 180, backgroundColor: '#F3F4F6' },
   mediaImageMultiple: {
     flexBasis: '48%',
     flexGrow: 1,
     aspectRatio: 1,
     borderRadius: radii.md,
     marginBottom: spacing.xs,
+    backgroundColor: '#F3F4F6',
   },
 
   moreIcon: { color: colors.textLight, fontSize: 18 },

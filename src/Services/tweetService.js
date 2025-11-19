@@ -97,8 +97,8 @@ const mapTweetSnapshot = async (docSnap, currentUserId) => {
   const tweet = {
     id: docSnap.id,
     ...data,
-    likesCount: data?.likesCount ?? 0,
-    retweetsCount: data?.retweetsCount ?? 0,
+    likesCount: Math.max(Number(data?.likesCount ?? 0), 0),
+    retweetsCount: Math.max(Number(data?.retweetsCount ?? 0), 0),
     repliesCount: data?.repliesCount ?? 0,
     sharesCount: data?.sharesCount ?? 0,
     liked: false,

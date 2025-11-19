@@ -70,6 +70,29 @@ export default StyleSheet.create({
   avatarInitial: { color: colors.text, fontWeight: '700' },
 
   composerBody: { flex: 1 },
+  mediaPreviewContainer: { marginTop: 12, gap: 12 },
+  mediaItemWrapper: {
+    position: 'relative',
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    backgroundColor: '#E5E7EB',
+  },
+  mediaItem: {
+    width: '100%',
+    backgroundColor: '#F3F4F6',
+  },
+  removeMediaButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeMediaText: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
 
   input: {
     minHeight: 120,
