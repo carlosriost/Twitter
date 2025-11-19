@@ -1,6 +1,4 @@
 // src/Services/storageService.js
-// Servicio para seleccionar imágenes desde la galería y subirlas a Firebase Storage
-// Funciona en React Native usando la URI local y convirtiéndola a Blob
 
 import { Platform } from 'react-native';
 import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -15,10 +13,10 @@ try {
   console.warn('[StorageConfig] No se pudo leer bucket', e?.message || e);
 }
 
-// Fallback nativo opcional: @react-native-firebase/storage si está instalado
+
 let rnStorage = null;
 try {
-  // eslint-disable-next-line global-require
+  
   rnStorage = require('@react-native-firebase/storage').default;
 } catch (e) {
   rnStorage = null;
@@ -53,14 +51,14 @@ function buildPath({ folder = 'uploads', userId = 'anonymous', fileName }) {
   return `${cleanFolder}/${userId}/${fileName}`;
 }
 
-// Sube un archivo desde una URI local (file://... o content://...) a Firebase Storage
+// Sube un archivo desde una URI local 
 export async function uploadFromUri(uri, { folder = 'uploads', userId = 'anonymous', fileName, contentType } = {}) {
   if (!uri) throw new Error('uploadFromUri: uri requerida');
 
   const finalName = fileName || uniqueName('img');
   const path = buildPath({ folder, userId, fileName: finalName });
 
-  // Preferir RNFirebase en móvil si está disponible (mejor compatibilidad con content://)
+  // Preferir RNFirebase en móvil si está disponible 
   if (Platform.OS !== 'web' && rnStorage) {
     const ref = rnStorage().ref(path);
     const meta = { contentType: contentType || mimeFromFilename(finalName) };
@@ -149,8 +147,4 @@ export function calcAspectRatio(width, height, fallback = 16 / 9) {
   return fallback;
 }
 
-// Nota de permisos (documentación):
-// - Android 13+ añade READ_MEDIA_IMAGES. Image Picker gestiona permisos en tiempo de ejecución,
-//   pero si personalizas, revisa su README.
-// - iOS requiere NSPhotoLibraryUsageDescription (y opcionalmente NSCameraUsageDescription si usas cámara).
-//   Añade los strings adecuados en Info.plist.
+

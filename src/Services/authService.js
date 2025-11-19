@@ -3,15 +3,14 @@ import { auth, db } from '../Config/firebaseConfig';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
-  signOut 
+  signOut,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { setDoc, doc } from 'firebase/firestore';
 import { profileStore } from './profileStore';
 
 
-/**
- * 🔹 Registrar usuario nuevo (Auth + Firestore)
- */
+/*Registrar usuario nuevo (Auth + Firestore)*/
 export const registerUser = async (email, password, username, fullname) => {
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -31,9 +30,7 @@ export const registerUser = async (email, password, username, fullname) => {
   }
 };
 
-/**
- * 🔹 Iniciar sesión
- */
+/*Iniciar sesión */
 export const loginUser = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -45,9 +42,7 @@ export const loginUser = async (email, password) => {
   }
 };
 
-/**
- * 🔹 Cerrar sesión
- */
+/*Cerrar sesión */
 export const logoutUser = async () => {
   try {
     await signOut(auth);
@@ -55,6 +50,18 @@ export const logoutUser = async () => {
     console.log("Sesión cerrada correctamente");
   } catch (error) {
     console.error("Error cerrando sesión:", error.message);
+    throw error;
+  }
+};
+
+/*Enviar email de restablecimiento de contraseña */
+export const resetPassword = async (email) => {
+  if (!email) throw new Error('Ingresa un correo válido.');
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return true;
+  } catch (error) {
+    console.error('Error enviando restablecimiento:', error.message);
     throw error;
   }
 };

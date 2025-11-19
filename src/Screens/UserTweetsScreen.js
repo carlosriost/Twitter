@@ -12,7 +12,7 @@ import {
 import { colors } from '../Styles/theme';
 import styles from '../Styles/UserTweetsScreen.styles';
 import { auth, db } from '../Config/firebaseConfig';
-import { subscribeToTweetsByUser } from '../Services/tweetService';
+import { subscribeToTweetsByUser, getLikedTweets } from '../Services/tweetService';
 import { toggleLike, toggleRetweet } from '../Services/engagementService';
 import { profileStore } from '../Services/profileStore';
 import { collection, query, where, limit, getDocs } from 'firebase/firestore';
@@ -27,12 +27,15 @@ import {
   unfollowUser,
 } from '../Services/followService';
 
-const profileTabs = ['Posts', 'Replies', 'Media', 'Likes'];
+const profileTabs = ['Posts', 'Media', 'Likes'];
 
 export default function UserTweetsScreen({ route, navigation }) {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(auth.currentUser?.uid ?? null);
+  const [activeTab, setActiveTab] = useState('Posts');
+  const [likedTweets, setLikedTweets] = useState([]);
+  const [loadingLikes, setLoadingLikes] = useState(false);
 
   // Perfil propio (store)
   const [profile, setProfile] = useState(profileStore.getProfile());
@@ -153,6 +156,28 @@ export default function UserTweetsScreen({ route, navigation }) {
     };
   }, [screenUsername, currentUserId]);
 
+  // Cargar Likes on-demand cuando se activa la pestaña Likes
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLikes = async () => {
+      if (activeTab !== 'Likes') return;
+      setLoadingLikes(true);
+      try {
+        const data = await getLikedTweets(screenUsername);
+        if (!cancelled) setLikedTweets(data);
+      } catch (e) {
+        console.warn('Error cargando likes:', e);
+        if (!cancelled) setLikedTweets([]);
+      } finally {
+        if (!cancelled) setLoadingLikes(false);
+      }
+    };
+    fetchLikes();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, screenUsername]);
+
   // Suscripciones a seguidores/seguidos del usuario mostrado (para contadores)
   useEffect(() => {
     if (!viewedUid) return;
@@ -206,6 +231,31 @@ export default function UserTweetsScreen({ route, navigation }) {
     [currentUserId, ensureAuthenticated]
   );
 
+  const formatTweetTime = useCallback((tweet) => {
+    try {
+      const ts = tweet?.createdAt;
+      let date = null;
+      if (ts?.toDate) {
+        date = ts.toDate();
+      } else if (typeof ts === 'number') {
+        date = new Date(ts);
+      } else if (ts && typeof ts === 'object' && typeof ts._seconds === 'number') {
+        date = new Date(ts._seconds * 1000);
+      } else if (tweet?.metadata?.clientTimestamp) {
+        date = new Date(tweet.metadata.clientTimestamp);
+      }
+      if (!date) return '';
+      const day = date.getDate().toString().padStart(2, '0');
+      const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      const month = monthNames[date.getMonth()];
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day} ${month} ${hours}:${minutes}`;
+    } catch {
+      return '';
+    }
+  }, []);
+
   // Seguir/Dejar de seguir al usuario mostrado (en perfil ajeno)
   const isFollowingViewed = useMemo(() => {
     if (!viewedUid) return false;
@@ -246,13 +296,13 @@ export default function UserTweetsScreen({ route, navigation }) {
       username: screenUsername,
       fullname: displayName,
       uid: viewedUid || undefined,
-      initialTab: 'followers', // si unificas, abre directamente "Seguidores"
+      initialTab: 'followers', 
     });
   };
 
   const goToFollowing = () => {
     if (!screenUsername) return;
-    // En este proyecto tienes pantalla separada "Following"; si unificas, navega a 'Followers' con initialTab: 'following'
+
     navigation.push('Following', {
       username: screenUsername,
       fullname: displayName,
@@ -279,6 +329,10 @@ export default function UserTweetsScreen({ route, navigation }) {
         <View style={styles.tweetHeader}>
           <Text style={styles.tweetName}>{item.fullname || item.username}</Text>
           <Text style={styles.tweetMeta}>@{item.username}</Text>
+          {(() => {
+            const t = formatTweetTime(item);
+            return t ? <Text style={styles.tweetMeta}>· {t}</Text> : null;
+          })()}
           <Text style={styles.moreIcon}>⋯</Text>
         </View>
 
@@ -353,7 +407,12 @@ export default function UserTweetsScreen({ route, navigation }) {
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
       <FlatList
-        data={tweets}
+        data={activeTab === 'Posts' ? tweets : activeTab === 'Media' ? (
+          (tweets || []).filter((t) => {
+            const media = t.media || t.mediaUrls || t.mediaUrl;
+            return Array.isArray(media) ? media.length > 0 : Boolean(media);
+          })
+        ) : likedTweets}
         keyExtractor={(item) => item.id}
         renderItem={renderTweet}
         showsVerticalScrollIndicator={false}
@@ -414,14 +473,14 @@ export default function UserTweetsScreen({ route, navigation }) {
                 <Text style={styles.profileMeta}>No bio yet</Text>
               )}
 
-              {/* Datos extra (estáticos de ejemplo) */}
+              {/* Datos extra(estáticos de ejemplo)*/}
               <View style={styles.profileMetaRow}>
                 <Text style={styles.profileMeta}>📍 Medellín, Colombia</Text>
                 <Text style={styles.dot}>·</Text>
                 <Text style={styles.profileMeta}>Joined May 2024</Text>
               </View>
 
-              {/* Stats con navegación */}
+              {/*Stats con navegación*/}
               <View style={styles.profileStats}>
                 <Tap style={styles.profileStat} onPress={goToFollowing}>
                   <Text style={styles.profileStatNumber}>{followingCount}</Text>
@@ -434,25 +493,30 @@ export default function UserTweetsScreen({ route, navigation }) {
               </View>
             </View>
 
-            {/* Tabs (solo UI por ahora) */}
+            {/* Tabs */}
             <View style={styles.tabRow}>
-              {profileTabs.map((tab, index) => (
-                <View
+              {profileTabs.map((tab) => (
+                <Tap
                   key={tab}
-                  style={[styles.tabItem, index === 0 && styles.tabItemActive]}
+                  style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
+                  onPress={() => setActiveTab(tab)}
+                  accessibilityRole="button"
                 >
                   <Text
                     style={[
                       styles.tabLabel,
-                      index === 0 && styles.tabLabelActive,
+                      activeTab === tab && styles.tabLabelActive,
                     ]}
                   >
                     {tab}
                   </Text>
-                  {index === 0 && <View style={styles.tabIndicator} />}
-                </View>
+                  {activeTab === tab && <View style={styles.tabIndicator} />}
+                </Tap>
               ))}
             </View>
+            {activeTab === 'Likes' && loadingLikes && (
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 8, marginLeft: 16 }} />
+            )}
           </>
         }
       />

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import {
   SafeAreaView,
   View,
@@ -14,17 +14,20 @@ import { FAB, Portal } from 'react-native-paper';
 import Tap from '../Components/Tap';
 import styles from '../Styles/HomeScreen.styles';
 import { colors } from '../Styles/theme';
-import { auth } from '../Config/firebaseConfig';
+import { auth, db } from '../Config/firebaseConfig';
+import { logoutUser } from '../Services/authService';
 import { subscribeToTweets } from '../Services/tweetService';
 import { toggleLike, toggleRetweet } from '../Services/engagementService';
 import { profileStore } from '../Services/profileStore';
+import { subscribeFollowing } from '../Services/followService';
+import FollowButton from '../Components/FollowButton';
+import { getUserByUsername, followUser } from '../Services/followService';
 
 /*Íconos inferiores*/
 const bottomNavItems = [
   { id: 'home', label: 'Home', icon: '🏠', route: 'Home' },
   { id: 'search', label: 'Search', icon: '🔍', route: 'Home' },
   { id: 'post', label: 'Post', icon: '✍️', route: 'Tweet' },
-  { id: 'messages', label: 'Inbox', icon: '✉️', route: 'Home' },
 ];
 
 /*Íconos del compositor*/
@@ -36,6 +39,15 @@ export default function HomeScreen({ navigation, route }) {
   const [tweets, setTweets] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(auth.currentUser?.uid ?? null);
   const [loading, setLoading] = useState(true);
+  const [myFollowingSet, setMyFollowingSet] = useState(new Set());
+  const listRef = useRef(null);
+
+  // Search UI state (search users like in Followers)
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchUsername, setSearchUsername] = useState('');
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [searchResult, setSearchResult] = useState(null);
+  const [followBusy, setFollowBusy] = useState(false);
 
   //Derivar usuario/nombre visibles
   const userUsername =
@@ -76,6 +88,32 @@ export default function HomeScreen({ navigation, route }) {
       if (unsubscribe) unsubscribe();
     };
   }, [currentUserId]);
+
+  /* Mi lista de seguidos (para filtrar pestaña Following) */
+  useEffect(() => {
+    if (!currentUserId) {
+      setMyFollowingSet(new Set());
+      return;
+    }
+    const unsub = subscribeFollowing(db, currentUserId, (uids) => setMyFollowingSet(new Set(uids)));
+    return () => unsub && unsub();
+  }, [currentUserId]);
+
+  const visibleTweets = useMemo(() => {
+    // If searching and a user is selected, show only that user's tweets
+    if (searchMode && searchResult) {
+      const targetUid = searchResult.uid;
+      const targetUsername = searchResult.username;
+      return tweets.filter((t) => (t?.uid && t.uid === targetUid) || (t?.username && t.username === targetUsername));
+    }
+    // Otherwise, apply Following filter when on that tab
+    if (activeTab === 'following') {
+      if (!myFollowingSet || myFollowingSet.size === 0) return [];
+      return tweets.filter((t) => t?.uid && myFollowingSet.has(t.uid));
+    }
+    // Default: all tweets
+    return tweets;
+  }, [tweets, activeTab, myFollowingSet, searchMode, searchResult]);
 
   /*Validar autenticación antes de acciones*/
   const ensureAuthenticated = useCallback(() => {
@@ -174,6 +212,41 @@ export default function HomeScreen({ navigation, route }) {
 
   const listPaddingBottom = 56 + 24;
 
+  const handleLogout = useCallback(async () => {
+    try {
+      await logoutUser();
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    } catch (e) {
+      console.warn('Error al cerrar sesión', e?.message || e);
+      Alert.alert('Cerrar sesión', 'No se pudo cerrar sesión. Intenta de nuevo.');
+    }
+  }, [navigation]);
+
+  const formatTweetTime = useCallback((tweet) => {
+    try {
+      const ts = tweet?.createdAt;
+      let date = null;
+      if (ts?.toDate) {
+        date = ts.toDate();
+      } else if (typeof ts === 'number') {
+        date = new Date(ts);
+      } else if (ts && typeof ts === 'object' && typeof ts._seconds === 'number') {
+        date = new Date(ts._seconds * 1000);
+      } else if (tweet?.metadata?.clientTimestamp) {
+        date = new Date(tweet.metadata.clientTimestamp);
+      }
+      if (!date) return '';
+      const day = date.getDate().toString().padStart(2, '0');
+      const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      const month = monthNames[date.getMonth()];
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day} ${month} ${hours}:${minutes}`;
+    } catch {
+      return '';
+    }
+  }, []);
+
   /* Render de cada tweet */
   const renderTweet = ({ item }) => (
     <View style={styles.tweetRow}>
@@ -193,7 +266,13 @@ export default function HomeScreen({ navigation, route }) {
         <Tap style={styles.tweetHeader} onPress={() => openUserProfile(item)}>
           <View style={styles.headerText}>
             <Text style={styles.tweetName}>{item.fullname || item.username || 'User'}</Text>
-            <Text style={styles.tweetMeta}>@{item.username || 'user'}</Text>
+            <Text style={styles.tweetMeta}>
+              @{item.username || 'user'}
+              {(() => {
+                const t = formatTweetTime(item);
+                return t ? ` · ${t}` : '';
+              })()}
+            </Text>
           </View>
         </Tap>
 
@@ -256,6 +335,81 @@ export default function HomeScreen({ navigation, route }) {
     </View>
   );
 
+  const handleBottomPress = useCallback((id) => {
+    if (id === 'home') {
+      if (listRef.current) {
+        try { listRef.current.scrollToOffset({ offset: 0, animated: true }); } catch {}
+      }
+      return;
+    }
+    if (id === 'search') {
+      setSearchMode((v) => {
+        const next = !v;
+        if (next && listRef.current) {
+          try { listRef.current.scrollToOffset({ offset: 0, animated: true }); } catch {}
+        }
+       
+        if (!next) {
+          setSearchUsername('');
+          setSearchResult(null);
+        }
+        return next;
+      });
+      return;
+    }
+    if (id === 'post') {
+      navigation.navigate('Tweet');
+      return;
+    }
+  }, [navigation]);
+
+  const handleSearchUser = useCallback(async () => {
+    const raw = (searchUsername || '').trim();
+    const normalized = raw.replace(/^@/, '').toLowerCase();
+    if (!normalized) {
+      Alert.alert('Ingresa un usuario', 'Escribe el nombre de usuario, por ejemplo: @juan');
+      return;
+    }
+    try {
+      setSearchBusy(true);
+      const user = await getUserByUsername(db, normalized);
+      if (!user) {
+        setSearchResult(null);
+        Alert.alert('Usuario no encontrado', `No existe @${normalized}.`);
+        return;
+      }
+      if (user.uid === currentUserId) {
+        Alert.alert('Acción inválida', 'No puedes seguirte a ti mismo.');
+      } else if (myFollowingSet.has(user.uid)) {
+        Alert.alert('Ya lo sigues', `Ya sigues a @${normalized}.`);
+      }
+      setSearchResult(user);
+    } catch (e) {
+      console.warn('Error buscando usuario', e);
+      Alert.alert('Error', 'No se pudo buscar el usuario.');
+    } finally {
+      setSearchBusy(false);
+    }
+  }, [searchUsername, currentUserId, myFollowingSet]);
+
+  const handleConfirmFollowFromSearch = useCallback(async () => {
+    if (!currentUserId || !searchResult?.uid) return;
+    if (searchResult.uid === currentUserId) return;
+    if (myFollowingSet.has(searchResult.uid)) return;
+    try {
+      setFollowBusy(true);
+      await followUser(db, currentUserId, searchResult.uid);
+      Alert.alert('¡Listo!', `Ahora sigues a @${searchResult.username}.`);
+      setSearchUsername('');
+      setSearchResult(null);
+    } catch (e) {
+      console.warn('Error al seguir desde búsqueda', e);
+      Alert.alert('Error', 'No se pudo completar la acción.');
+    } finally {
+      setFollowBusy(false);
+    }
+  }, [currentUserId, searchResult, myFollowingSet]);
+
   /*Pantalla*/
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -265,18 +419,80 @@ export default function HomeScreen({ navigation, route }) {
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={tweets}
+          data={visibleTweets}
           keyExtractor={(item) => item.id}
           renderItem={renderTweet}
           showsVerticalScrollIndicator={false}
+          ref={listRef}
           contentContainerStyle={[styles.listContent, { paddingBottom: listPaddingBottom }]}
           ListHeaderComponent={
             <>
               {/* Barra superior */}
               <View style={styles.topBar}>
                 <Text style={styles.brandMark}>∃ꊼ∃ꊼ</Text>
-                <Text style={styles.sparkle}>✨</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Text style={{ color: colors.textLight, fontWeight: '600' }}>
+                    {currentUserId ? (displayName || userUsername) : 'Invitado'}
+                  </Text>
+                  {currentUserId && (
+                    <Tap onPress={handleLogout} accessibilityRole="button">
+                      <Text style={{ color: colors.danger, fontWeight: '700' }}>Cerrar sesión</Text>
+                    </Tap>
+                  )}
+                </View>
               </View>
+
+              
+              {searchMode && (
+                <View style={styles.searchForm}>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Buscar usuario @username"
+                    placeholderTextColor={colors.textLight}
+                    value={searchUsername}
+                    onChangeText={setSearchUsername}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="search"
+                    onSubmitEditing={!searchBusy ? handleSearchUser : undefined}
+                  />
+                  <Tap
+                    onPress={!searchBusy ? handleSearchUser : undefined}
+                    style={[styles.searchSubmit, (searchBusy || !searchUsername.trim()) && styles.searchSubmitDisabled]}
+                  >
+                    <Text style={styles.searchSubmitText}>{searchBusy ? '...' : 'Buscar'}</Text>
+                  </Tap>
+                </View>
+              )}
+
+              {!!searchMode && !!searchResult && (
+                <View style={styles.searchPreviewCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={styles.previewAvatar}>
+                      {searchResult.photoURL ? (
+                        <Image source={{ uri: searchResult.photoURL }} style={styles.previewAvatarImg} />
+                      ) : (
+                        <Text style={styles.avatarInitial}>
+                          {(searchResult.fullname?.[0] || searchResult.username?.[0] || 'U').toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.previewName} numberOfLines={1}>
+                        {searchResult.fullname || searchResult.username}
+                      </Text>
+                      <Text style={styles.previewUsername} numberOfLines={1}>@{searchResult.username}</Text>
+                    </View>
+                    <FollowButton
+                      following={myFollowingSet.has(searchResult.uid)}
+                      onPress={handleConfirmFollowFromSearch}
+                      disabled={searchResult.uid === currentUserId || myFollowingSet.has(searchResult.uid)}
+                      loading={followBusy}
+                      size="sm"
+                    />
+                  </View>
+                </View>
+              )}
 
               {/* Tabs */}
               <View style={styles.tabs}>
@@ -356,7 +572,7 @@ export default function HomeScreen({ navigation, route }) {
       {/*Bottom Navigation*/}
       <View style={[styles.bottomBar, { marginBottom: 16 }]}>
         {bottomNavItems.map((item) => (
-          <Tap key={item.id} style={styles.bottomItem} onPress={() => navigation.navigate(item.route)}>
+          <Tap key={item.id} style={styles.bottomItem} onPress={() => handleBottomPress(item.id)}>
             <Text style={styles.bottomItemIcon}>{item.icon}</Text>
             <Text style={styles.bottomItemLabel}>{item.label}</Text>
           </Tap>

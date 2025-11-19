@@ -93,10 +93,20 @@ export default function TweetScreen({ navigation, route }) {
 
       setTweet('');
       setMedia([]);
-      navigation.goBack();
+      Alert.alert(
+        'Publicado',
+        isReplyMode ? 'Tu respuesta se publicó exitosamente.' : 'Tu tweet se publicó exitosamente.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ],
+        { cancelable: false }
+      );
     } catch (error) {
-      console.error('❌ Error al publicar el tweet:', error);
-      alert('Error al publicar el tweet 😢');
+      console.error('Error al publicar el tweet:', error);
+      alert('Error al publicar el tweet');
     } finally {
       setLoading(false);
     }
@@ -201,8 +211,8 @@ export default function TweetScreen({ navigation, route }) {
               onChangeText={setTweet}
             />
 
-            {/* Toolbar */}
-            {/* Media preview */}
+           
+            
             {media.length > 0 && (
               <View style={styles.mediaPreviewContainer}>
                 {media.map((m, idx) => (

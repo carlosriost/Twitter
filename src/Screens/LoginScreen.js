@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { colors } from '../Styles/theme';
 import styles from '../Styles/LoginScreen.styles';
-import { loginUser } from '../Services/authService';
+import { loginUser, resetPassword } from '../Services/authService';
 import { getUserProfile } from '../Services/userService';
 import { profileStore } from '../Services/profileStore';
 import Tap from '../Components/Tap';
@@ -19,6 +19,7 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -62,6 +63,30 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const mail = (email || '').trim();
+    if (!mail) {
+      alert('Ingresa tu correo para enviar el enlace de restablecimiento.');
+      return;
+    }
+    try {
+      setResetting(true);
+      await resetPassword(mail);
+      alert('Te enviamos un correo para restablecer la contraseña. Revisa tu bandeja de entrada o spam.');
+    } catch (error) {
+      console.error('Error en restablecer contraseña:', error);
+      if (error.code === 'auth/user-not-found') {
+        alert('No existe una cuenta con este correo.');
+      } else if (error.code === 'auth/invalid-email') {
+        alert('El correo ingresado no es válido.');
+      } else {
+        alert('No se pudo enviar el correo de restablecimiento: ' + error.message);
+      }
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
@@ -101,7 +126,7 @@ export default function LoginScreen({ navigation }) {
             onSubmitEditing={handleLogin}
           />
 
-          <Tap style={styles.forgotButton} onPress={() => {/*recuperar contraseña*/}}>
+          <Tap style={styles.forgotButton} onPress={handleForgotPassword} disabled={resetting}>
             <Text style={styles.forgotText}>Forgot password?</Text>
           </Tap>
 

@@ -12,6 +12,7 @@ export default StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    paddingTop: 35,
   },
 
   profileButton: {
@@ -108,6 +109,55 @@ export default StyleSheet.create({
   actionChipText: { color: colors.text, fontWeight: '600' },
 
   divider: { height: 8, backgroundColor: colors.surface, width: '100%' },
+
+  // Search (from bottom bar toggle)
+  searchForm: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: '#F3F4F6',
+    borderRadius: radii.md,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    color: colors.text,
+  },
+  searchSubmit: {
+    marginLeft: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  searchSubmitDisabled: { backgroundColor: '#D1D5DB' },
+  searchSubmitText: { color: colors.onPrimary, fontWeight: '700' },
+
+  searchPreviewCard: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  previewAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.pill,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewAvatarImg: { width: '100%', height: '100%', borderRadius: radii.pill },
+  previewName: { fontSize: typography.subtitle, fontWeight: '700', color: colors.text },
+  previewUsername: { fontSize: typography.caption, color: colors.textLight },
 
   tweetRow: {
     flexDirection: 'row',

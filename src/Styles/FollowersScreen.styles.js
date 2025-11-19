@@ -191,4 +191,38 @@ export default StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
+
+  // Formulario seguir por @usuario
+  followForm: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E7EB',
+  },
+  followInput: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    color: '#111827',
+  },
+  followSubmit: {
+    marginLeft: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  followSubmitDisabled: {
+    backgroundColor: '#D1D5DB',
+  },
+  followSubmitText: {
+    color: colors.onPrimary,
+    fontWeight: '700',
+  },
 });

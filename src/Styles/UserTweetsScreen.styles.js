@@ -13,6 +13,7 @@ export default StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    paddingTop: 35,
   },
   backArrow: { fontSize: 28, color: colors.text },
   topBarName: { fontSize: typography.subtitle, color: colors.text, fontWeight: '700' },

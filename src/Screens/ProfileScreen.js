@@ -81,7 +81,7 @@ export default function ProfileScreen() {
           setLoading(false);
         },
         (err) => {
-          console.error('❌ Error en perfil:', err);
+          console.error('Error en perfil:', err);
           setError('No se pudo cargar el perfil.');
           setLoading(false);
         }
@@ -310,7 +310,7 @@ export default function ProfileScreen() {
           <Text style={styles.profileBioMuted}>No bio yet</Text>
         )}
 
-        {/* Stats: Siguiendo / Seguidores */}
+        {/*Siguiendo / Seguidores */}
         <View style={styles.profileStatsRow}>
           <Tap style={styles.profileStatTap} onPress={goToFollowing}>
             <Text style={styles.profileStatNumber}>{followingCount}</Text>
@@ -360,7 +360,7 @@ export default function ProfileScreen() {
         />
       )}
 
-      {/* Modal de zoom eliminado a petición del usuario */}
+      
     </SafeAreaView>
   );
 }

@@ -8,6 +8,8 @@ import {
   StatusBar,
   ActivityIndicator,
   Image,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { colors } from '../Styles/theme';
 import styles from '../Styles/FollowersScreen.styles';
@@ -51,6 +53,12 @@ export default function FollowersScreen({ route, navigation }) {
   // Nuestros sets para pintar botones/badges
   const [myFollowingSet, setMyFollowingSet] = useState(new Set()); // a quién sigo yo
   const [myFollowersSet, setMyFollowersSet] = useState(new Set()); // quién me sigue a mí
+
+  // Formulario seguir por @usuario
+  const [usernameToFollow, setUsernameToFollow] = useState('');
+  const [submittingFollow, setSubmittingFollow] = useState(false); // searching
+  const [previewUser, setPreviewUser] = useState(null); // resultado de búsqueda
+  const [confirmingFollow, setConfirmingFollow] = useState(false); // confirmando follow
 
   // Cargar perfil del usuario visto por uid o username
   useEffect(() => {
@@ -148,6 +156,55 @@ export default function FollowersScreen({ route, navigation }) {
     }
   };
 
+  const handleFollowByUsername = async () => {
+    if (!currentUid) return;
+    const raw = (usernameToFollow || '').trim();
+    const normalized = raw.replace(/^@/, '').toLowerCase();
+    if (!normalized) {
+      Alert.alert('Ingresa un usuario', 'Escribe el nombre de usuario, por ejemplo: @juan');
+      return;
+    }
+    try {
+      setSubmittingFollow(true);
+      const target = await getUserByUsername(db, normalized);
+      if (!target) {
+        Alert.alert('Usuario no encontrado', `No existe @${normalized}.`);
+        setPreviewUser(null);
+        return;
+      }
+      // Notificaciones de validación, pero mostramos preview igualmente
+      if (target.uid === currentUid) {
+        Alert.alert('Acción inválida', 'No puedes seguirte a ti mismo.');
+      } else if (myFollowingSet.has(target.uid)) {
+        Alert.alert('Ya lo sigues', `Ya sigues a @${normalized}.`);
+      }
+      setPreviewUser(target);
+    } catch (e) {
+      console.warn('Error al seguir por username', e);
+      Alert.alert('Error', 'No se pudo completar la acción. Intenta de nuevo.');
+    } finally {
+      setSubmittingFollow(false);
+    }
+  };
+
+  const handleConfirmFollowPreview = async () => {
+    if (!currentUid || !previewUser?.uid) return;
+    if (previewUser.uid === currentUid) return;
+    if (myFollowingSet.has(previewUser.uid)) return;
+    try {
+      setConfirmingFollow(true);
+      await followUser(db, currentUid, previewUser.uid);
+      Alert.alert('¡Listo!', `Ahora sigues a @${previewUser.username}.`);
+      setUsernameToFollow('');
+      setPreviewUser(null);
+    } catch (e) {
+      console.warn('Error confirmando follow', e);
+      Alert.alert('Error', 'No se pudo completar la acción. Intenta de nuevo.');
+    } finally {
+      setConfirmingFollow(false);
+    }
+  };
+
   const goBack = () => navigation.goBack();
 
   const navigateToUser = (user) => {
@@ -229,6 +286,61 @@ export default function FollowersScreen({ route, navigation }) {
           </Text>
         </View>
       </View>
+
+      {/* Formulario: buscar @usuario para seguir */}
+      <View style={styles.followForm}>
+        <TextInput
+          style={styles.followInput}
+          placeholder="Seguir por @usuario"
+          placeholderTextColor="#9CA3AF"
+          value={usernameToFollow}
+          onChangeText={setUsernameToFollow}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="done"
+          onSubmitEditing={!submittingFollow ? handleFollowByUsername : undefined}
+        />
+        <Tap
+          onPress={!submittingFollow ? handleFollowByUsername : undefined}
+          style={[styles.followSubmit, (submittingFollow || !usernameToFollow.trim()) && styles.followSubmitDisabled]}
+        >
+          <Text style={styles.followSubmitText}>{submittingFollow ? '...' : 'Buscar'}</Text>
+        </Tap>
+      </View>
+
+      {/* Vista previa de usuario buscado */}
+      {!!previewUser && (
+        <View style={styles.card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {previewUser.photoURL ? (
+              <Image source={{ uri: previewUser.photoURL }} style={styles.cardAvatar} />
+            ) : (
+              <View style={[styles.cardAvatar, styles.avatarFallback]}>
+                <Text style={styles.avatarInitials}>
+                  {(previewUser.fullname || previewUser.displayName || previewUser.username || 'U')
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardName} numberOfLines={1}>
+                {displayName(previewUser)}
+              </Text>
+              {!!previewUser.username && (
+                <Text style={styles.cardUsername} numberOfLines={1}>@{previewUser.username}</Text>
+              )}
+            </View>
+            <FollowButton
+              following={myFollowingSet.has(previewUser.uid)}
+              onPress={handleConfirmFollowPreview}
+              disabled={previewUser.uid === currentUid || myFollowingSet.has(previewUser.uid)}
+              loading={confirmingFollow}
+              size="sm"
+            />
+          </View>
+        </View>
+      )}
 
       {/* Tarjeta de perfil*/}
       <View style={styles.card}>
